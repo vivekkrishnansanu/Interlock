@@ -21,9 +21,13 @@ GRANT ALL ON profiles TO anon, authenticated;
 ALTER TABLE profiles DISABLE ROW LEVEL SECURITY;
 
 -- Step 5: Create admin user profile
+-- First, get the user ID from auth.users
+SELECT id, email FROM auth.users WHERE email = 'vivekkrishnansanu@gmail.com';
+
+-- Then create the profile (replace USER_ID_HERE with the actual ID)
 INSERT INTO profiles (id, name, email, role) 
 VALUES (
-    gen_random_uuid(), 
+    'USER_ID_HERE', -- Replace with actual user ID
     'Vivek Krishnan S', 
     'vivekkrishnansanu@gmail.com', 
     'admin'

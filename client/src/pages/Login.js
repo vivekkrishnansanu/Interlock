@@ -66,7 +66,8 @@ const Login = () => {
         </div>
         
         <h2 className="mt-6 text-center text-3xl font-bold text-gray-900 tracking-tight">
-          {isSignup ? 'Create Account' : 'Sign in to Interlock'}
+          {isSignup ? 'Create Account' : 'Sign in to 
+          Interlock'}
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600">
           {isSignup ? 'Create your wage tracking account' : 'Access your wage tracking dashboard'}

@@ -1,462 +1,361 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { useMonth } from '../contexts/AuthContext';
-import { toast } from 'react-hot-toast';
 import { 
-  Download, 
   Calendar, 
-  User, 
-  Clock, 
+  Download, 
+  Search, 
+  Filter, 
   DollarSign, 
-  TrendingUp,
-  TrendingDown,
-  CheckCircle,
-  AlertCircle,
-  BarChart3
+  Clock, 
+  User,
+  TrendingUp
 } from 'lucide-react';
-import { Link } from 'react-router-dom'; // Added Link import
+import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
+import toast from 'react-hot-toast';
 
 const MonthlySummaries = () => {
-  const { user } = useAuth();
-  const { selectedMonth, isCurrentMonth, getSelectedMonthName } = useMonth();
-  const isEditor = ['admin', 'editor'].includes(user?.role);
+  const { userProfile } = useAuth();
+  const [summaries, setSummaries] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterMonth, setFilterMonth] = useState('');
+  const [filterYear, setFilterYear] = useState(new Date().getFullYear().toString());
 
-  const [monthlyData, setMonthlyData] = useState(null);
-  const [loading, setLoading] = useState(false);
+  // Fetch monthly summaries from Supabase
+  const fetchSummaries = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch daily logs grouped by month
+      const { data: logsData, error: logsError } = await supabase
+        .from('daily_logs')
+        .select(`
+          *,
+          employees (
+            id,
+            name,
+            designation,
+            category,
+            employment_type,
+            work_type,
+            nt_rate,
+            rot_rate,
+            hot_rate
+          ),
+          sites (
+            id,
+            name,
+            code
+          )
+        `)
+        .order('date', { ascending: false });
 
-  // Sample data matching Excel format
-  const sampleEmployees = [
-    {
-      id: 'emp-1',
-      name: 'DEEPAK KUMAR',
-      cpr: '123456789',
-      category: 'General',
-      doj: '2024-01-15',
-      previousRate: 120.0,
-      currentRate: 130.0,
-      site: 'Site A'
-    },
-    {
-      id: 'emp-2',
-      name: 'ARUNKUMAR PC',
-      cpr: '987654321',
-      category: 'Supervisor',
-      doj: '2024-02-01',
-      previousRate: 200.0,
-      currentRate: 210.0,
-      site: 'Site B'
-    },
-    {
-      id: 'emp-3',
-      name: 'AMAL KOORARA',
-      cpr: '456789123',
-      category: 'Skilled',
-      doj: '2024-01-20',
-      previousRate: 120.0,
-      currentRate: 130.0,
-      site: 'Site A'
-    },
-    {
-      id: 'emp-4',
-      name: 'SHIFIN RAPHEL',
-      cpr: '789123456',
-      category: 'General',
-      doj: '2024-02-10',
-      previousRate: 120.0,
-      currentRate: 130.0,
-      site: 'Site A'
-    },
-    {
-      id: 'emp-5',
-      name: 'ARUN MON',
-      cpr: '321654987',
-      category: 'Supervisor',
-      doj: '2024-01-25',
-      previousRate: 180.0,
-      currentRate: 190.0,
-      site: 'Site B'
+      if (logsError) throw logsError;
+
+      // Process logs into monthly summaries
+      const monthlyData = processLogsIntoSummaries(logsData || []);
+      setSummaries(monthlyData);
+    } catch (error) {
+      console.error('Error fetching summaries:', error);
+      toast.error('Failed to fetch monthly summaries');
+      setSummaries([]);
+    } finally {
+      setLoading(false);
     }
-  ];
-
-  const sampleDailyLogs = [
-    { employeeId: 'emp-1', date: '2025-03-01', ntHours: 8, notHours: 2, hotHours: 0 },
-    { employeeId: 'emp-1', date: '2025-03-02', ntHours: 8, notHours: 1, hotHours: 0 },
-    { employeeId: 'emp-1', date: '2025-03-03', ntHours: 8, notHours: 0, hotHours: 0 },
-    { employeeId: 'emp-2', date: '2025-03-01', ntHours: 8, notHours: 1, hotHours: 1 },
-    { employeeId: 'emp-2', date: '2025-03-02', ntHours: 8, notHours: 2, hotHours: 0 },
-    { employeeId: 'emp-2', date: '2025-03-03', ntHours: 8, notHours: 1, hotHours: 0 },
-    { employeeId: 'emp-3', date: '2025-03-01', ntHours: 8, notHours: 0, hotHours: 0 },
-    { employeeId: 'emp-3', date: '2025-03-02', ntHours: 8, notHours: 1, hotHours: 0 },
-    { employeeId: 'emp-3', date: '2025-03-03', ntHours: 8, notHours: 0, hotHours: 0 }
-  ];
-
-  useEffect(() => {
-    generateMonthlySummary();
-  }, [selectedMonth]); // Regenerate when month changes
-
-  const generateMonthlySummary = () => {
-    const currentMonth = selectedMonth.month;
-    const currentYear = selectedMonth.year;
-    
-    // Sample daily logs for the selected month
-    const sampleLogs = [
-      // Deepak Kumar - has advance deduction of 83.33
-      { employeeId: 'emp-1', employeeName: 'DEEPAK KUMAR', ntHours: 160, notHours: 20, hotHours: 8, totalPay: 2750, allowance: 50, deductions: 0, advanceDeductions: 83.33 },
-      // Arun PC - has advance deduction of 500
-      { employeeId: 'emp-2', employeeName: 'ARUNKUMAR PC', ntHours: 168, notHours: 15, hotHours: 5, totalPay: 3200, allowance: 75, deductions: 0, advanceDeductions: 500 },
-      // Amal Koorara - has advance deduction of 83.33
-      { employeeId: 'emp-3', employeeName: 'AMAL KOORARA', ntHours: 152, notHours: 18, hotHours: 6, totalPay: 2600, allowance: 45, deductions: 0, advanceDeductions: 83.33 },
-      { employeeId: 'emp-4', employeeName: 'SHIFIN RAPHEL', ntHours: 160, notHours: 12, hotHours: 4, totalPay: 2400, allowance: 40, deductions: 0, advanceDeductions: 0 },
-      { employeeId: 'emp-5', employeeName: 'ARUN MON', ntHours: 168, notHours: 25, hotHours: 10, totalPay: 3800, allowance: 80, deductions: 0, advanceDeductions: 0 },
-      { employeeId: 'emp-6', employeeName: 'AJITH KUMAR', ntHours: 156, notHours: 16, hotHours: 7, totalPay: 2700, allowance: 55, deductions: 0, advanceDeductions: 0 },
-      { employeeId: 'emp-7', employeeName: 'VISHNU', ntHours: 160, notHours: 14, hotHours: 5, totalPay: 2500, allowance: 50, deductions: 0, advanceDeductions: 0 },
-      { employeeId: 'emp-8', employeeName: 'RAVI KAMMARI', ntHours: 164, notHours: 22, hotHours: 8, totalPay: 3100, allowance: 65, deductions: 0, advanceDeductions: 0 },
-      { employeeId: 'emp-9', employeeName: 'YADHUKRISHNAN', ntHours: 160, notHours: 18, hotHours: 6, totalPay: 2800, allowance: 60, deductions: 0, advanceDeductions: 0 },
-      { employeeId: 'emp-10', employeeName: 'MD MATALIB MIAH', ntHours: 168, notHours: 20, hotHours: 8, totalPay: 1800, allowance: 30, deductions: 0, advanceDeductions: 0 },
-      { employeeId: 'emp-11', employeeName: 'KABIR HOSSAIN', ntHours: 160, notHours: 15, hotHours: 5, totalPay: 2200, allowance: 35, deductions: 0, advanceDeductions: 0 },
-      { employeeId: 'emp-12', employeeName: 'ABDUL RAHIM', ntHours: 156, notHours: 18, hotHours: 7, totalPay: 1900, allowance: 40, deductions: 0, advanceDeductions: 0 },
-      { employeeId: 'emp-13', employeeName: 'ALAM ABUL KASHEM', ntHours: 160, notHours: 16, hotHours: 6, totalPay: 1700, allowance: 30, deductions: 0, advanceDeductions: 0 },
-      { employeeId: 'emp-14', employeeName: 'ANOWAR HOSSAIN', ntHours: 164, notHours: 19, hotHours: 8, totalPay: 2000, allowance: 35, deductions: 0, advanceDeductions: 0 },
-      { employeeId: 'emp-15', employeeName: 'ABDUL MIAH ISAMAIL', ntHours: 160, notHours: 14, hotHours: 5, totalPay: 1800, allowance: 30, deductions: 0, advanceDeductions: 0 },
-      { employeeId: 'emp-16', employeeName: 'PRADEEP KUMAR', ntHours: 168, notHours: 0, hotHours: 0, totalPay: 190, allowance: 0, deductions: 0, advanceDeductions: 0 },
-      { employeeId: 'emp-17', employeeName: 'JOHN SIMON', ntHours: 168, notHours: 0, hotHours: 0, totalPay: 115, allowance: 0, deductions: 0, advanceDeductions: 0 },
-      { employeeId: 'emp-18', employeeName: 'RAJESH', ntHours: 168, notHours: 0, hotHours: 0, totalPay: 130, allowance: 0, deductions: 0, advanceDeductions: 0 },
-      { employeeId: 'emp-19', employeeName: 'SREENATH KANKKARA', ntHours: 168, notHours: 0, hotHours: 0, totalPay: 120, allowance: 0, deductions: 0, advanceDeductions: 0 }
-    ];
-
-    // Calculate monthly summary for each employee
-    const monthlyData = sampleLogs.map(log => {
-      const finalPay = log.totalPay + log.allowance;
-      const netPay = finalPay - log.deductions - log.advanceDeductions;
-      const roundedNetPay = Math.round(netPay * 10) / 10;
-
-        return {
-        ...log,
-        finalPay,
-        netPay,
-        roundedNetPay
-        };
-      });
-
-    // Calculate statistics
-    const statistics = {
-      totalEmployees: monthlyData.length,
-      totalNormalHours: monthlyData.reduce((sum, log) => sum + log.ntHours, 0),
-      totalRegularOTHours: monthlyData.reduce((sum, log) => sum + log.notHours, 0),
-      totalHolidayOTHours: monthlyData.reduce((sum, log) => sum + log.hotHours, 0),
-      totalPay: monthlyData.reduce((sum, log) => sum + log.totalPay, 0),
-      totalAllowance: monthlyData.reduce((sum, log) => sum + log.allowance, 0),
-      totalDeductions: monthlyData.reduce((sum, log) => sum + log.deductions, 0),
-      totalAdvanceDeductions: monthlyData.reduce((sum, log) => sum + log.advanceDeductions, 0),
-      totalRoundedNetPay: monthlyData.reduce((sum, log) => sum + log.roundedNetPay, 0),
-      averageNetPay: monthlyData.length > 0 ? monthlyData.reduce((sum, log) => sum + log.roundedNetPay, 0) / monthlyData.length : 0
-    };
-
-    setMonthlyData({ employees: monthlyData, statistics });
   };
 
-  const handleExportCSV = () => {
-    if (!monthlyData) return;
+  const processLogsIntoSummaries = (logs) => {
+    const monthlyGroups = {};
+    
+    logs.forEach(log => {
+      const date = new Date(log.date);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      
+      if (!monthlyGroups[monthKey]) {
+        monthlyGroups[monthKey] = {
+          month: monthKey,
+          year: date.getFullYear(),
+          monthName: date.toLocaleDateString('en-US', { month: 'long' }),
+          employees: {},
+          totalHours: 0,
+          totalPay: 0,
+          totalLogs: 0
+        };
+      }
+      
+      const employeeId = log.employee_id;
+      if (!monthlyGroups[monthKey].employees[employeeId]) {
+        monthlyGroups[monthKey].employees[employeeId] = {
+          id: employeeId,
+          name: log.employees?.name,
+          designation: log.employees?.designation,
+          category: log.employees?.category,
+          employment_type: log.employees?.employment_type,
+          work_type: log.employees?.work_type,
+          nt_rate: log.employees?.nt_rate,
+          rot_rate: log.employees?.rot_rate,
+          hot_rate: log.employees?.hot_rate,
+          totalHours: 0,
+          ntHours: 0,
+          rotHours: 0,
+          hotHours: 0,
+          totalPay: 0,
+          workDays: 0
+        };
+      }
+      
+      const employee = monthlyGroups[monthKey].employees[employeeId];
+      employee.totalHours += log.hours_worked || 0;
+      employee.ntHours += log.nt_hours || 0;
+      employee.rotHours += log.rot_hours || 0;
+      employee.hotHours += log.hot_hours || 0;
+      employee.totalPay += log.total_pay || 0;
+      employee.workDays += 1;
+      
+      monthlyGroups[monthKey].totalHours += log.hours_worked || 0;
+      monthlyGroups[monthKey].totalPay += log.total_pay || 0;
+      monthlyGroups[monthKey].totalLogs += 1;
+    });
+    
+    return Object.values(monthlyGroups).map(group => ({
+      ...group,
+      employees: Object.values(group.employees)
+    }));
+  };
 
-    const headers = [
-      'S.No',
-      'Name',
-      'Category',
-      'CPR No.',
-      'D.O.J',
-      'PREVIOUS',
-      'Rate',
-      'No of Days',
-      'Abs-ent',
-      'Present Days',
-      'Wages',
-      'NOT (Hrs)',
-      'NOT Amt',
-      'H.OT (hrs)',
-      'HOT Amt',
-      'G.Wages',
-      'Allow.',
-      'Allow. Portion',
-      'Net Paid',
-      'Deductions',
-      'After Deductions',
-      'Roundoff'
-    ];
+  useEffect(() => {
+    fetchSummaries();
+  }, []);
 
-    const csvRows = monthlyData.employeeSummaries.map((summary, index) => [
-      index + 1,
-      summary.employeeName,
-      summary.employeeCategory,
-      summary.employeeCPR,
-      summary.employeeDOJ,
-      summary.previousRate,
-      summary.currentRate,
-      summary.noOfDays,
-      summary.absentDays,
-      summary.presentDays,
-      summary.wages,
-      summary.notHours,
-      summary.notAmount,
-      summary.hotHours,
-      summary.hotAmount,
-      summary.grossWages,
-      summary.allowance,
-      summary.allowancePortion,
-      summary.netPaid,
-      summary.deductions,
-      summary.afterDeductions,
-      summary.roundoff
-    ]);
+  // Filter summaries
+  const filteredSummaries = summaries.filter(summary => {
+    const matchesSearch = summary.employees.some(emp => 
+      emp.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      emp.designation?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    
+    const matchesMonth = !filterMonth || summary.month === filterMonth;
+    const matchesYear = !filterYear || summary.year.toString() === filterYear;
+    
+    return matchesSearch && matchesMonth && matchesYear;
+  });
 
+  const exportSummary = (summary) => {
     const csvContent = [
-      headers.join(','),
-      ...csvRows.map(row => row.join(','))
-    ].join('\n');
+      ['Employee Name', 'Designation', 'Category', 'Employment Type', 'Work Type', 'Total Hours', 'NT Hours', 'ROT Hours', 'HOT Hours', 'Total Pay', 'Work Days'],
+      ...summary.employees.map(emp => [
+        emp.name,
+        emp.designation,
+        emp.category,
+        emp.employment_type,
+        emp.work_type,
+        emp.totalHours,
+        emp.ntHours,
+        emp.rotHours,
+        emp.hotHours,
+        emp.totalPay,
+        emp.workDays
+      ])
+    ].map(row => row.join(',')).join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `wage-summary-${selectedMonth}-${selectedMonth.year}.csv`;
+    a.download = `monthly_summary_${summary.month}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
-    
-    toast.success('CSV exported successfully');
   };
 
-  const formatCurrency = (amount) => {
-    // Handle NaN, null, undefined values
-    if (amount === null || amount === undefined || isNaN(amount)) {
-      return 'BHD 0';
-    }
-    
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'BHD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount);
-  };
+  // Get unique months and years for filters
+  const uniqueMonths = [...new Set(summaries.map(s => s.month))].sort().reverse();
+  const uniqueYears = [...new Set(summaries.map(s => s.year))].sort().reverse();
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-lg">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-md">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Monthly Summaries</h1>
-          <p className="mt-1 text-sm text-gray-600">
-            {getSelectedMonthName()} wage reports and analytics
-            {!isCurrentMonth && (
-              <span className="ml-2 px-2 py-1 text-xs font-medium text-blue-600 bg-blue-50 rounded-md">
-                Historical Report
-              </span>
-            )}
-          </p>
-        </div>
-        <button
-          onClick={handleExportCSV}
-          disabled={!monthlyData}
-          className="btn btn-primary flex items-center space-x-2"
-        >
-          <Download size={20} />
-          <span>Export CSV</span>
-        </button>
-      </div>
-
-      {/* Month/Year Selector - Now handled by global MonthSelector */}
-      <div className="card p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Calendar className="h-5 w-5 text-gray-400" />
-            <span className="text-sm font-medium text-gray-700">Selected Period:</span>
-            <span className="text-sm font-semibold text-gray-900">{getSelectedMonthName()}</span>
-          </div>
-          {!isCurrentMonth && (
-            <span className="px-2 py-1 text-xs font-medium text-blue-600 bg-blue-50 rounded-md">
-              Historical Data
-            </span>
-          )}
+          <p className="text-gray-600">View and export monthly employee summaries</p>
         </div>
       </div>
 
-      {monthlyData && (
-        <>
-          {/* Statistics Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Link to="/employees" className="card p-6 hover:shadow-md transition-shadow cursor-pointer">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <User className="h-8 w-8 text-primary-600" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">Total Employees</dt>
-                    <dd className="text-lg font-medium text-gray-900">{monthlyData.statistics.totalEmployees}</dd>
-                  </dl>
-                </div>
-              </div>
-            </Link>
-
-            <Link to="/daily-logs" className="card p-6 hover:shadow-md transition-shadow cursor-pointer">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <DollarSign className="h-8 w-8 text-green-600" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">Total Pay</dt>
-                    <dd className="text-lg font-medium text-gray-900">{formatCurrency(monthlyData.statistics.totalPay)}</dd>
-                  </dl>
-                </div>
-              </div>
-            </Link>
-
-            <Link to="/salary-advances" className="card p-6 hover:shadow-md transition-shadow cursor-pointer">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <TrendingDown className="h-8 w-8 text-red-600" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">Advance Deductions</dt>
-                    <dd className="text-lg font-medium text-gray-900">{formatCurrency(monthlyData.statistics.totalAdvanceDeductions)}</dd>
-                  </dl>
-                </div>
-              </div>
-            </Link>
-
-            <div className="card p-6">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <BarChart3 className="h-8 w-8 text-blue-600" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">Net Pay</dt>
-                    <dd className="text-lg font-medium text-gray-900">{formatCurrency(monthlyData.statistics.totalRoundedNetPay)}</dd>
-                  </dl>
-                </div>
+      {/* Filters */}
+      <div className="card">
+        <div className="card-body">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-md">
+            {/* Search */}
+            <div>
+              <div className="relative">
+                <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search employees..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="form-input pl-10"
+                />
               </div>
             </div>
-          </div>
 
-          {/* Employee Summary Table */}
+            {/* Month Filter */}
+            <div>
+              <select
+                value={filterMonth}
+                onChange={(e) => setFilterMonth(e.target.value)}
+                className="form-select"
+              >
+                <option value="">All Months</option>
+                {uniqueMonths.map(month => {
+                  const [year, monthNum] = month.split('-');
+                  const date = new Date(year, monthNum - 1);
+                  return (
+                    <option key={month} value={month}>
+                      {date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+
+            {/* Year Filter */}
+            <div>
+              <select
+                value={filterYear}
+                onChange={(e) => setFilterYear(e.target.value)}
+                className="form-select"
+              >
+                <option value="">All Years</option>
+                {uniqueYears.map(year => (
+                  <option key={year} value={year}>{year}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Summaries */}
+      <div className="space-y-md">
+        {filteredSummaries.length === 0 ? (
           <div className="card">
-            <div className="card-header">
-              <h3 className="text-lg font-medium text-gray-900">Employee Summary</h3>
-            </div>
-            <div className="table-container">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Employee Name</th>
-                    <th>N.T Hours</th>
-                    <th>N.O.T Hours</th>
-                    <th>H.O.T Hours</th>
-                    <th>Total Pay</th>
-                    <th>Allowance</th>
-                    <th>Final Pay</th>
-                    <th>Deductions</th>
-                    <th>Advance Deductions</th>
-                    <th>Net Pay</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {monthlyData.employees.map((employee, index) => (
-                    <tr key={employee.employeeId}>
-                      <td>{index + 1}</td>
-                      <td className="font-medium">{employee.employeeName}</td>
-                      <td>{employee.ntHours}</td>
-                      <td>{employee.notHours}</td>
-                      <td>{employee.hotHours}</td>
-                      <td className="tabular-nums">{formatCurrency(employee.totalPay)}</td>
-                      <td className="tabular-nums">{formatCurrency(employee.allowance)}</td>
-                      <td className="tabular-nums">{formatCurrency(employee.finalPay)}</td>
-                      <td className="tabular-nums text-red-600">{formatCurrency(employee.deductions)}</td>
-                      <td className="tabular-nums text-red-600">{formatCurrency(employee.advanceDeductions)}</td>
-                      <td className="font-medium text-green-600 tabular-nums">{formatCurrency(employee.roundedNetPay)}</td>
-                    </tr>
-                  ))}
-                  {/* Total Row */}
-                  <tr className="bg-yellow-50 font-bold">
-                    <td colSpan="5">TOTAL</td>
-                    <td className="tabular-nums">{formatCurrency(monthlyData.statistics.totalPay)}</td>
-                    <td className="tabular-nums">{formatCurrency(monthlyData.statistics.totalAllowance)}</td>
-                    <td className="tabular-nums">{formatCurrency(monthlyData.statistics.totalPay + monthlyData.statistics.totalAllowance)}</td>
-                    <td className="tabular-nums text-red-600">{formatCurrency(monthlyData.statistics.totalDeductions)}</td>
-                    <td className="tabular-nums text-red-600">{formatCurrency(monthlyData.statistics.totalAdvanceDeductions)}</td>
-                    <td className="text-green-600 bg-yellow-200 tabular-nums">{formatCurrency(monthlyData.statistics.totalRoundedNetPay)}</td>
-                  </tr>
-                </tbody>
-              </table>
+            <div className="card-body text-center py-12">
+              <Calendar size={48} className="mx-auto text-gray-400 mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No summaries found</h3>
+              <p className="text-gray-500">
+                {searchTerm || filterMonth || filterYear
+                  ? 'No summaries match your filters'
+                  : 'No monthly summaries available. Add daily logs to generate summaries.'}
+              </p>
             </div>
           </div>
-
-          {/* Detailed Statistics */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="card p-6">
-              <h4 className="text-lg font-medium text-gray-900 mb-4">Hours Breakdown</h4>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Normal Time Hours:</span>
-                  <span className="font-medium">{monthlyData.statistics.totalNormalHours}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Normal Overtime Hours:</span>
-                  <span className="font-medium">{monthlyData.statistics.totalRegularOTHours}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Holiday Overtime Hours:</span>
-                  <span className="font-medium">{monthlyData.statistics.totalHolidayOTHours}</span>
-                </div>
-                <div className="border-t pt-3">
-                  <div className="flex justify-between font-medium">
-                    <span>Total Hours:</span>
-                    <span>{monthlyData.statistics.totalNormalHours + monthlyData.statistics.totalRegularOTHours + monthlyData.statistics.totalHolidayOTHours}</span>
+        ) : (
+          filteredSummaries.map((summary) => (
+            <div key={summary.month} className="card">
+              <div className="card-header">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-sm">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      {summary.monthName} {summary.year}
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      {summary.employees.length} employees • {summary.totalLogs} log entries
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-sm">
+                    <div className="text-right">
+                      <p className="text-sm text-gray-600">Total Hours</p>
+                      <p className="text-lg font-semibold text-gray-900">{summary.totalHours.toFixed(1)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-gray-600">Total Pay</p>
+                      <p className="text-lg font-semibold text-green-600">BHD {summary.totalPay.toFixed(2)}</p>
+                    </div>
+                    <button
+                      onClick={() => exportSummary(summary)}
+                      className="btn btn-outline"
+                    >
+                      <Download size={16} />
+                      Export
+                    </button>
                   </div>
                 </div>
               </div>
-            </div>
-
-            <div className="card p-6">
-              <h4 className="text-lg font-medium text-gray-900 mb-4">Pay Breakdown</h4>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Total Pay:</span>
-                  <span className="font-medium">{formatCurrency(monthlyData.statistics.totalPay)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Allowance:</span>
-                  <span className="font-medium">{formatCurrency(monthlyData.statistics.totalAllowance)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Deductions:</span>
-                  <span className="font-medium text-red-600">{formatCurrency(monthlyData.statistics.totalDeductions)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Advance Deductions:</span>
-                  <span className="font-medium text-red-600">{formatCurrency(monthlyData.statistics.totalAdvanceDeductions)}</span>
-                </div>
-                <div className="border-t pt-3">
-                  <div className="flex justify-between font-medium text-green-600">
-                    <span>Net Pay:</span>
-                    <span>{formatCurrency(monthlyData.statistics.totalRoundedNetPay)}</span>
-                  </div>
+              
+              <div className="card-body">
+                <div className="table-container">
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Employee</th>
+                        <th>Designation</th>
+                        <th>Category</th>
+                        <th>Employment Type</th>
+                        <th>Work Type</th>
+                        <th>Total Hours</th>
+                        <th>NT Hours</th>
+                        <th>ROT Hours</th>
+                        <th>HOT Hours</th>
+                        <th>Total Pay</th>
+                        <th>Work Days</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {summary.employees.map((employee) => (
+                        <tr key={employee.id}>
+                          <td>
+                            <div className="flex items-center gap-sm">
+                              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                                <User size={14} className="text-blue-600" />
+                              </div>
+                              <div>
+                                <div className="font-medium text-gray-900">{employee.name}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td>{employee.designation}</td>
+                          <td>
+                            <span className="badge badge-outline">{employee.category}</span>
+                          </td>
+                          <td>
+                            <span className={`badge ${
+                              employee.employment_type === 'permanent' 
+                                ? 'badge-success' 
+                                : 'badge-warning'
+                            }`}>
+                              {employee.employment_type}
+                            </span>
+                          </td>
+                          <td>
+                            <span className="badge badge-outline">{employee.work_type}</span>
+                          </td>
+                          <td className="font-mono">{employee.totalHours.toFixed(1)}</td>
+                          <td className="font-mono">{employee.ntHours.toFixed(1)}</td>
+                          <td className="font-mono">{employee.rotHours.toFixed(1)}</td>
+                          <td className="font-mono">{employee.hotHours.toFixed(1)}</td>
+                          <td className="font-mono font-medium text-green-600">
+                            BHD {employee.totalPay.toFixed(2)}
+                          </td>
+                          <td className="font-mono">{employee.workDays}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>
-          </div>
-        </>
-      )}
+          ))
+        )}
+      </div>
     </div>
   );
 };

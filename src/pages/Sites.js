@@ -1,414 +1,392 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Filter, Edit, Trash2, Eye, MapPin, Building, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { 
+  Plus, 
+  Search, 
+  MapPin, 
+  Edit, 
+  Trash2, 
+  Building,
+  Download 
+} from 'lucide-react';
+import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
-import { useAuth } from '../contexts/AuthContext';
-import SiteModal from '../components/SiteModal';
 
 const Sites = () => {
-  const { isEditor } = useAuth();
   const [sites, setSites] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingSite, setEditingSite] = useState(null);
+  const [formData, setFormData] = useState({
+    name: '',
+    code: '',
+    address: '',
+    contact_person: '',
+    phone: '',
+    email: ''
+  });
 
-  // Demo data for sites
-  const demoSites = [
-    {
-      id: 'site-1',
-      name: 'Workshop Site #91',
-      code: 'WS#91',
-      location: 'Industrial Area, Manama',
-      description: 'Main workshop facility for mechanical work',
-      status: 'active',
-      employeeCount: 12,
-      totalHours: 156,
-      totalPay: 18750.000,
-      quotationAmount: 25000.000,
-      clientName: 'ABC Manufacturing Co.',
-      clientContact: '+973 1700 0001',
-      clientEmail: 'info@abcmanufacturing.bh',
-      projectStartDate: '2025-01-15',
-      expectedEndDate: '2025-06-30'
-    },
-    {
-      id: 'site-2',
-      name: 'Site A - Construction',
-      code: 'SITE-A',
-      location: 'Seef District, Manama',
-      description: 'High-rise construction project',
-      status: 'active',
-      employeeCount: 8,
-      totalHours: 98,
-      totalPay: 12450.000,
-      quotationAmount: 18000.000,
-      clientName: 'Seef Properties Ltd.',
-      clientContact: '+973 1700 0002',
-      clientEmail: 'projects@seefproperties.bh',
-      projectStartDate: '2025-02-01',
-      expectedEndDate: '2025-08-15'
-    },
-    {
-      id: 'site-3',
-      name: 'ILS Project #175',
-      code: 'ILS#175',
-      location: 'Hidd Industrial Area',
-      description: 'Infrastructure development project',
-      status: 'active',
-      employeeCount: 15,
-      totalHours: 203,
-      totalPay: 25680.000,
-      quotationAmount: 35000.000,
-      clientName: 'Hidd Industrial Services',
-      clientContact: '+973 1700 0003',
-      clientEmail: 'contracts@hiddindustrial.bh',
-      projectStartDate: '2025-01-01',
-      expectedEndDate: '2025-12-31'
-    },
-    {
-      id: 'site-4',
-      name: 'Workshop Site #86',
-      code: 'WS#86',
-      location: 'Sitra Industrial Area',
-      description: 'Secondary workshop for electrical work',
-      status: 'inactive',
-      employeeCount: 6,
-      totalHours: 45,
-      totalPay: 5670.000,
-      quotationAmount: 8000.000,
-      clientName: 'Sitra Engineering Co.',
-      clientContact: '+973 1700 0004',
-      clientEmail: 'engineering@sitraco.bh',
-      projectStartDate: '2024-10-01',
-      expectedEndDate: '2025-03-31'
-    },
-    {
-      id: 'site-5',
-      name: 'Maintenance Site B',
-      code: 'MS-B',
-      location: 'Juffair, Manama',
-      description: 'Building maintenance and repairs',
-      status: 'completed',
-      employeeCount: 4,
-      totalHours: 32,
-      totalPay: 3840.000,
-      quotationAmount: 5000.000,
-      clientName: 'Juffair Properties',
-      clientContact: '+973 1700 0005',
-      clientEmail: 'maintenance@juffairproperties.bh',
-      projectStartDate: '2024-11-01',
-      expectedEndDate: '2025-01-31'
+  // Fetch sites from Supabase
+  const fetchSites = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('sites')
+        .select('*')
+        .order('name', { ascending: true });
+
+      if (error) throw error;
+      setSites(data || []);
+    } catch (error) {
+      console.error('Error fetching sites:', error);
+      toast.error('Failed to fetch sites');
+      setSites([]);
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
 
   useEffect(() => {
     fetchSites();
   }, []);
 
-  useEffect(() => {
-    // Filter sites based on search and filters
-    filterSites();
-  }, [searchTerm, statusFilter]);
-
-  const fetchSites = async () => {
-    try {
-      // Simulate API call
-      setTimeout(() => {
-        setSites(demoSites);
-        setLoading(false);
-      }, 500);
-    } catch (error) {
-      console.error('Error fetching sites:', error);
-      toast.error('Failed to fetch sites');
-      setLoading(false);
-    }
-  };
-
-  const filterSites = () => {
-    let filtered = demoSites;
-
-    // Apply search filter
-    if (searchTerm) {
-      filtered = filtered.filter(site =>
-        site.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        site.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        site.location.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    // Apply status filter
-    if (statusFilter) {
-      filtered = filtered.filter(site => site.status === statusFilter);
-    }
-
-    setSites(filtered);
-  };
+  // Filter sites
+  const filteredSites = sites.filter(site => 
+    site.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    site.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    site.address.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const handleAddSite = () => {
     setEditingSite(null);
+    setFormData({
+      name: '',
+      code: '',
+      address: '',
+      contact_person: '',
+      phone: '',
+      email: ''
+    });
     setShowModal(true);
   };
 
   const handleEditSite = (site) => {
     setEditingSite(site);
+    setFormData({
+      name: site.name,
+      code: site.code,
+      address: site.address,
+      contact_person: site.contact_person,
+      phone: site.phone,
+      email: site.email
+    });
     setShowModal(true);
   };
 
-  const handleDeleteSite = async (site) => {
-    if (window.confirm(`Are you sure you want to delete site "${site.name}"?`)) {
-      try {
-        // Simulate API call
-        setSites(prev => prev.filter(s => s.id !== site.id));
-        toast.success('Site deleted successfully');
-      } catch (error) {
-        console.error('Error deleting site:', error);
-        toast.error('Failed to delete site');
+  const handleDeleteSite = async (siteId) => {
+    if (!confirm('Are you sure you want to delete this site?')) return;
+    
+    try {
+      const { error } = await supabase
+        .from('sites')
+        .delete()
+        .eq('id', siteId);
+
+      if (error) throw error;
+      
+      toast.success('Site deleted successfully');
+      fetchSites();
+    } catch (error) {
+      console.error('Error deleting site:', error);
+      toast.error('Failed to delete site');
+    }
+  };
+
+  const handleSaveSite = async () => {
+    try {
+      if (editingSite) {
+        // Update existing site
+        const { error } = await supabase
+          .from('sites')
+          .update(formData)
+          .eq('id', editingSite.id);
+
+        if (error) throw error;
+        toast.success('Site updated successfully');
+      } else {
+        // Create new site
+        const { error } = await supabase
+          .from('sites')
+          .insert([formData]);
+
+        if (error) throw error;
+        toast.success('Site created successfully');
       }
+      
+      setShowModal(false);
+      fetchSites();
+    } catch (error) {
+      console.error('Error saving site:', error);
+      toast.error('Failed to save site');
     }
   };
 
-  const handleModalClose = () => {
-    setShowModal(false);
-    setEditingSite(null);
-  };
+  const exportSites = () => {
+    const csvContent = [
+      ['Name', 'Code', 'Address', 'Contact Person', 'Phone', 'Email'],
+      ...filteredSites.map(site => [
+        site.name,
+        site.code,
+        site.address,
+        site.contact_person,
+        site.phone,
+        site.email
+      ])
+    ].map(row => row.join(',')).join('\n');
 
-  const handleSiteSaved = (savedSite) => {
-    if (editingSite) {
-      // Update existing site
-      setSites(prev => prev.map(site => 
-        site.id === savedSite.id ? savedSite : site
-      ));
-      toast.success('Site updated successfully');
-    } else {
-      // Add new site
-      const newSite = {
-        ...savedSite,
-        id: `site-${Date.now()}`,
-        employeeCount: 0,
-        totalHours: 0,
-        totalPay: 0
-      };
-      setSites(prev => [newSite, ...prev]);
-      toast.success('Site created successfully');
-    }
-    setShowModal(false);
-  };
-
-  const formatCurrency = (amount) => {
-    if (isNaN(amount) || amount === null || amount === undefined) return 'BHD 0';
-    return new Intl.NumberFormat('en-BH', {
-      style: 'currency',
-      currency: 'BHD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount);
-  };
-
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
-
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'active':
-        return <CheckCircle className="w-4 h-4 text-green-600" />;
-      case 'inactive':
-        return <XCircle className="w-4 h-4 text-red-600" />;
-      case 'completed':
-        return <Clock className="w-4 h-4 text-blue-600" />;
-      default:
-        return <Clock className="w-4 h-4 text-gray-600" />;
-    }
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'active':
-        return 'bg-green-100 text-green-800';
-      case 'inactive':
-        return 'bg-red-100 text-red-800';
-      case 'completed':
-        return 'bg-blue-100 text-blue-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'sites.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-lg">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-md">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Work Sites</h1>
-          <p className="mt-1 text-sm text-gray-600">
-            Manage work sites and track employee assignments
-          </p>
+          <p className="text-gray-600">Manage your work sites and locations</p>
         </div>
-        {isEditor && (
+        <div className="flex flex-col sm:flex-row gap-sm">
+          <button
+            onClick={exportSites}
+            className="btn btn-outline"
+          >
+            <Download size={16} />
+            Export
+          </button>
           <button
             onClick={handleAddSite}
-            className="btn btn-primary flex items-center space-x-2"
+            className="btn btn-primary"
           >
-            <Plus size={20} />
-            <span>Add Site</span>
+            <Plus size={16} />
+            Add Site
           </button>
+        </div>
+      </div>
+
+      {/* Search */}
+      <div className="card">
+        <div className="card-body">
+          <div className="relative">
+            <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search sites..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="form-input pl-10"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Sites Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-md">
+        {filteredSites.length === 0 ? (
+          <div className="col-span-full text-center py-12">
+            <Building size={48} className="mx-auto text-gray-400 mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No sites found</h3>
+            <p className="text-gray-500 mb-4">
+              {searchTerm ? 'No sites match your search' : 'Get started by adding your first work site'}
+            </p>
+            {!searchTerm && (
+              <button
+                onClick={handleAddSite}
+                className="btn btn-primary"
+              >
+                <Plus size={16} />
+                Add First Site
+              </button>
+            )}
+          </div>
+        ) : (
+          filteredSites.map((site) => (
+            <div key={site.id} className="card">
+              <div className="card-body">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-sm">
+                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <MapPin size={20} className="text-blue-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900">{site.name}</h3>
+                      <p className="text-sm text-gray-500">Code: {site.code}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-sm">
+                    <button
+                      onClick={() => handleEditSite(site)}
+                      className="btn btn-ghost btn-sm"
+                      title="Edit"
+                    >
+                      <Edit size={14} />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteSite(site.id)}
+                      className="btn btn-ghost btn-sm text-red-600 hover:text-red-700"
+                      title="Delete"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="space-y-2 text-sm">
+                  <div>
+                    <span className="font-medium text-gray-700">Address:</span>
+                    <p className="text-gray-600">{site.address || 'Not specified'}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-700">Contact:</span>
+                    <p className="text-gray-600">{site.contact_person || 'Not specified'}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-700">Phone:</span>
+                    <p className="text-gray-600">{site.phone || 'Not specified'}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-700">Email:</span>
+                    <p className="text-gray-600">{site.email || 'Not specified'}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))
         )}
       </div>
 
-      {/* Filters */}
-      <div className="card p-4">
-        <div className="flex flex-col md:flex-row gap-4">
-          {/* Search */}
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <input
-                type="text"
-                placeholder="Search sites by name, code, or location..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="input pl-10"
-              />
-            </div>
-          </div>
-
-          {/* Status Filter */}
-          <div className="md:w-48">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="input"
-            >
-              <option value="">All Status</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-              <option value="completed">Completed</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {/* Sites Table */}
-      <div className="card">
-        <div className="card-header">
-          <h3 className="text-lg font-medium text-gray-900">Sites List</h3>
-        </div>
-        <div className="table-container">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Site Name</th>
-                <th>Site Code</th>
-                <th>Location</th>
-                <th>Status</th>
-                <th>Created Date</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sites.length === 0 ? (
-                <tr>
-                  <td colSpan="6" className="text-center py-8 text-gray-500">
-                    <Building className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                    <p>No sites found</p>
-                    {isEditor && (
-                      <button
-                        onClick={handleAddSite}
-                        className="mt-2 text-primary-600 hover:text-primary-500"
-                      >
-                        Add your first site
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ) : (
-                sites.map((site) => (
-                  <tr key={site.id} className="hover:bg-gray-50">
-                    <td className="font-medium">{site.name}</td>
-                    <td>
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        {site.code}
-                      </span>
-                    </td>
-                    <td>{site.location}</td>
-                    <td>
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        site.status === 'active' 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {site.status}
-                      </span>
-                    </td>
-                    <td>{formatDate(site.createdDate)}</td>
-                    <td>
-                      <div className="flex items-center space-x-2">
-                        <button
-                          onClick={() => handleEditSite(site)}
-                          className="text-blue-600 hover:text-blue-800"
-                          title="Edit"
-                        >
-                          <Edit size={16} />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteSite(site)}
-                          className="text-red-600 hover:text-red-800"
-                          title="Delete"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Empty State */}
-      {sites.length === 0 && (
-        <div className="text-center py-12">
-          <Building className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No sites found</h3>
-          <p className="text-gray-500 mb-4">
-            {searchTerm || statusFilter 
-              ? 'Try adjusting your search or filter criteria.'
-              : 'Get started by creating your first work site.'
-            }
-          </p>
-          {isEditor && !searchTerm && !statusFilter && (
-            <button
-              onClick={handleAddSite}
-              className="btn btn-primary"
-            >
-              Add Your First Site
-            </button>
-          )}
-        </div>
-      )}
-
       {/* Site Modal */}
       {showModal && (
-        <SiteModal
-          site={editingSite}
-          onClose={handleModalClose}
-          onSaved={handleSiteSaved}
-        />
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <h2 className="text-xl font-semibold mb-4">
+                {editingSite ? 'Edit Site' : 'Add New Site'}
+              </h2>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Site Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    className="form-input"
+                    placeholder="Enter site name"
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Site Code *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.code}
+                    onChange={(e) => setFormData({...formData, code: e.target.value})}
+                    className="form-input"
+                    placeholder="Enter site code"
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Address
+                  </label>
+                  <textarea
+                    value={formData.address}
+                    onChange={(e) => setFormData({...formData, address: e.target.value})}
+                    className="form-textarea"
+                    placeholder="Enter site address"
+                    rows={3}
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Contact Person
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.contact_person}
+                    onChange={(e) => setFormData({...formData, contact_person: e.target.value})}
+                    className="form-input"
+                    placeholder="Enter contact person name"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Phone
+                  </label>
+                  <input
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                    className="form-input"
+                    placeholder="Enter phone number"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({...formData, email: e.target.value})}
+                    className="form-input"
+                    placeholder="Enter email address"
+                  />
+                </div>
+              </div>
+              
+              <div className="flex gap-sm mt-6">
+                <button
+                  onClick={() => setShowModal(false)}
+                  className="btn btn-outline flex-1"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveSite}
+                  disabled={!formData.name || !formData.code}
+                  className="btn btn-primary flex-1"
+                >
+                  {editingSite ? 'Update' : 'Create'} Site
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -1,376 +1,329 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import { 
   Users, 
-  Clock, 
   DollarSign, 
+  Clock, 
   TrendingUp, 
-  Eye, 
-  ArrowRight, 
-  Target, 
-  AlertTriangle, 
-  CheckCircle, 
-  XCircle,
-  Calendar,
+  Calendar, 
   MapPin,
-  Building,
-  Plus,
-  BarChart3
+  User,
+  Building
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { useMonth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
+import toast from 'react-hot-toast';
 
 const Dashboard = () => {
-  const { user } = useAuth();
-  const { selectedMonth, isCurrentMonth, getSelectedMonthName } = useMonth();
+  const { userProfile } = useAuth();
   const [stats, setStats] = useState({
     totalEmployees: 0,
+    totalSites: 0,
     totalHours: 0,
-    totalExpenses: 0,
-    averageCostPerHour: 0
+    totalPay: 0,
+    recentLogs: [],
+    topEmployees: [],
+    siteSummary: []
   });
+  const [loading, setLoading] = useState(true);
+
+  // Fetch dashboard data from Supabase
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch employees count
+      const { count: employeesCount, error: employeesError } = await supabase
+        .from('employees')
+        .select('*', { count: 'exact', head: true });
+
+      if (employeesError) throw employeesError;
+
+      // Fetch sites count
+      const { count: sitesCount, error: sitesError } = await supabase
+        .from('sites')
+        .select('*', { count: 'exact', head: true });
+
+      if (sitesError) throw sitesError;
+
+      // Fetch recent daily logs
+      const { data: recentLogs, error: logsError } = await supabase
+        .from('daily_logs')
+        .select(`
+          *,
+          employees (
+            id,
+            name,
+            designation
+          ),
+          sites (
+            id,
+            name,
+            code
+          )
+        `)
+        .order('date', { ascending: false })
+        .limit(10);
+
+      if (logsError) throw logsError;
+
+      // Calculate totals from logs
+      const totalHours = recentLogs?.reduce((sum, log) => sum + (log.hours_worked || 0), 0) || 0;
+      const totalPay = recentLogs?.reduce((sum, log) => sum + (log.total_pay || 0), 0) || 0;
+
+      // Get top employees by hours worked
+      const { data: topEmployees, error: topEmployeesError } = await supabase
+        .from('daily_logs')
+        .select(`
+          employees (
+            id,
+            name,
+            designation
+          ),
+          hours_worked
+        `)
+        .order('hours_worked', { ascending: false })
+        .limit(5);
+
+      if (topEmployeesError) throw topEmployeesError;
+
+      // Get site summary
+      const { data: siteSummary, error: siteSummaryError } = await supabase
+        .from('daily_logs')
+        .select(`
+          sites (
+            id,
+            name,
+            code
+          ),
+          hours_worked,
+          total_pay
+        `)
+        .order('hours_worked', { ascending: false })
+        .limit(5);
+
+      if (siteSummaryError) throw siteSummaryError;
+
+      setStats({
+        totalEmployees: employeesCount || 0,
+        totalSites: sitesCount || 0,
+        totalHours,
+        totalPay,
+        recentLogs: recentLogs || [],
+        topEmployees: topEmployees || [],
+        siteSummary: siteSummary || []
+      });
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+      toast.error('Failed to fetch dashboard data');
+      setStats({
+        totalEmployees: 0,
+        totalSites: 0,
+        totalHours: 0,
+        totalPay: 0,
+        recentLogs: [],
+        topEmployees: [],
+        siteSummary: []
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    // Calculate current month statistics
-    const currentMonthData = generateCurrentMonthData();
-    const totalEmployees = currentMonthData.length;
-    const totalHours = currentMonthData.reduce((sum, emp) => 
-      sum + (emp.totalNormalTime || 0) + (emp.totalRegularOT || 0) + (emp.totalHolidayOT || 0), 0);
-    const totalExpenses = currentMonthData.reduce((sum, emp) => sum + (emp.totalPay || 0), 0);
-    const averageCostPerHour = totalHours > 0 ? totalExpenses / totalHours : 0;
+    fetchDashboardData();
+  }, []);
 
-    setStats({
-      totalEmployees,
-      totalHours: Math.round(totalHours),
-      totalExpenses: Math.round(totalExpenses),
-      averageCostPerHour: Math.round(averageCostPerHour * 100) / 100
-    });
-  }, [selectedMonth]);
-
-  const generateCurrentMonthData = () => {
-    // Sample data for current month
-    return [
-      {
-        id: 1,
-        name: 'DEEPAK KUMAR',
-        totalNormalTime: 160,
-        totalRegularOT: 20,
-        totalHolidayOT: 8,
-        totalPay: 4560,
-        site: 'Workshop'
-      },
-      {
-        id: 2,
-        name: 'ARUNKUMAR PC',
-        totalNormalTime: 160,
-        totalRegularOT: 15,
-        totalHolidayOT: 5,
-        totalPay: 5200,
-        site: 'Workshop'
-      },
-      {
-        id: 3,
-        name: 'AMAL KOORARA',
-        totalNormalTime: 160,
-        totalRegularOT: 12,
-        totalHolidayOT: 3,
-        totalPay: 3120,
-        site: 'Workshop'
-      },
-      {
-        id: 4,
-        name: 'SHIFIN RAPHEL',
-        totalNormalTime: 160,
-        totalRegularOT: 18,
-        totalHolidayOT: 6,
-        totalPay: 3840,
-        site: 'Workshop'
-      },
-      {
-        id: 5,
-        name: 'ARUN MON',
-        totalNormalTime: 160,
-        totalRegularOT: 25,
-        totalHolidayOT: 10,
-        totalPay: 6080,
-        site: 'Workshop'
-      },
-      {
-        id: 6,
-        name: 'AJITH KUMAR',
-        totalNormalTime: 160,
-        totalRegularOT: 16,
-        totalHolidayOT: 4,
-        totalPay: 4160,
-        site: 'Workshop'
-      },
-      {
-        id: 7,
-        name: 'VISHNU',
-        totalNormalTime: 160,
-        totalRegularOT: 14,
-        totalHolidayOT: 2,
-        totalPay: 2880,
-        site: 'Workshop'
-      },
-      {
-        id: 8,
-        name: 'RAVI KAMMARI',
-        totalNormalTime: 160,
-        totalRegularOT: 22,
-        totalHolidayOT: 7,
-        totalPay: 4480,
-        site: 'Workshop'
-      },
-      {
-        id: 9,
-        name: 'YADHUKRISHNAN',
-        totalNormalTime: 160,
-        totalRegularOT: 19,
-        totalHolidayOT: 5,
-        totalPay: 4000,
-        site: 'Workshop'
-      },
-      {
-        id: 10,
-        name: 'PRADEEP KUMAR',
-        totalNormalTime: 160,
-        totalRegularOT: 20,
-        totalHolidayOT: 8,
-        totalPay: 4560,
-        site: 'Site A'
-      },
-      {
-        id: 11,
-        name: 'JOHN SIMON',
-        totalNormalTime: 160,
-        totalRegularOT: 15,
-        totalHolidayOT: 3,
-        totalPay: 2640,
-        site: 'Site B'
-      },
-      {
-        id: 12,
-        name: 'RAJESH',
-        totalNormalTime: 160,
-        totalRegularOT: 18,
-        totalHolidayOT: 6,
-        totalPay: 3840,
-        site: 'Site C'
-      },
-      {
-        id: 13,
-        name: 'SREENATH KANKKARA',
-        totalNormalTime: 160,
-        totalRegularOT: 16,
-        totalHolidayOT: 4,
-        totalPay: 3200,
-        site: 'Site D'
-      },
-      {
-        id: 14,
-        name: 'MD MATALIB MIAH',
-        totalNormalTime: 160,
-        totalRegularOT: 20,
-        totalHolidayOT: 8,
-        totalPay: 1440,
-        site: 'Site E'
-      },
-      {
-        id: 15,
-        name: 'KABIR HOSSAIN',
-        totalNormalTime: 160,
-        totalRegularOT: 25,
-        totalHolidayOT: 10,
-        totalPay: 2400,
-        site: 'Site F'
-      },
-      {
-        id: 16,
-        name: 'ABDUL RAHIM',
-        totalNormalTime: 160,
-        totalRegularOT: 18,
-        totalHolidayOT: 6,
-        totalPay: 1920,
-        site: 'Site G'
-      },
-      {
-        id: 17,
-        name: 'ALAM ABUL KASHEM',
-        totalNormalTime: 160,
-        totalRegularOT: 22,
-        totalHolidayOT: 7,
-        totalPay: 1656,
-        site: 'Site H'
-      },
-      {
-        id: 18,
-        name: 'ANOWAR HOSSAIN',
-        totalNormalTime: 160,
-        totalRegularOT: 20,
-        totalHolidayOT: 8,
-        totalPay: 1920,
-        site: 'Site I'
-      },
-      {
-        id: 19,
-        name: 'ABDUL MIAH ISAMAIL',
-        totalNormalTime: 160,
-        totalRegularOT: 19,
-        totalHolidayOT: 5,
-        totalPay: 1920,
-        site: 'Site J'
-      }
-    ];
-  };
-
-  const formatCurrency = (amount) => {
-    if (!amount || isNaN(amount)) return 'BHD 0';
-    return new Intl.NumberFormat('en-BH', {
-      style: 'currency',
-      currency: 'BHD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount);
-  };
-
-  const recentActivity = [
-    { id: 1, action: 'Daily log added for DEEPAK KUMAR', time: '2 hours ago', type: 'log' },
-    { id: 2, action: 'New employee ARUNKUMAR PC added', time: '4 hours ago', type: 'employee' },
-    { id: 3, action: 'Monthly summary generated for January', time: '1 day ago', type: 'summary' },
-    { id: 4, action: 'Site A expenses updated', time: '2 days ago', type: 'site' }
-  ];
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
+    <div className="space-lg">
       {/* Header */}
-      <div className="card">
-        <div className="card-header">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
-              <p className="mt-2 text-sm text-gray-600">
-                {getSelectedMonthName()} {isCurrentMonth && <span className="badge badge-success ml-2">Current Month</span>}
-              </p>
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+        <p className="text-gray-600">Welcome back, {userProfile?.full_name || 'User'}!</p>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-md">
+        <div className="card">
+          <div className="card-body">
+            <div className="flex items-center gap-sm">
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                <Users size={24} className="text-blue-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Total Employees</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.totalEmployees}</p>
+              </div>
             </div>
-            {user?.role === 'admin' && (
-              <Link 
-                to="/leadership" 
-                className="btn btn-primary flex items-center space-x-2"
-              >
-                <Eye size={16} />
-                <span>Leadership View</span>
-              </Link>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="card-body">
+            <div className="flex items-center gap-sm">
+              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                <Building size={24} className="text-green-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Active Sites</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.totalSites}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="card-body">
+            <div className="flex items-center gap-sm">
+              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                <Clock size={24} className="text-purple-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Total Hours</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.totalHours.toFixed(1)}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="card-body">
+            <div className="flex items-center gap-sm">
+              <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                <DollarSign size={24} className="text-orange-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Total Pay</p>
+                <p className="text-2xl font-bold text-gray-900">BHD {stats.totalPay.toFixed(2)}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Recent Activity and Top Performers */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-lg">
+        {/* Recent Activity */}
+        <div className="card">
+          <div className="card-header">
+            <h3 className="text-lg font-semibold text-gray-900">Recent Activity</h3>
+          </div>
+          <div className="card-body">
+            {stats.recentLogs.length === 0 ? (
+              <div className="text-center py-8">
+                <Calendar size={48} className="mx-auto text-gray-400 mb-4" />
+                <p className="text-gray-500">No recent activity</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {stats.recentLogs.map((log) => (
+                  <div key={log.id} className="flex items-center gap-sm p-3 bg-gray-50 rounded-lg">
+                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                      <User size={16} className="text-blue-600" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium text-gray-900">{log.employees?.name}</p>
+                      <p className="text-sm text-gray-600">
+                        Worked {log.hours_worked} hours at {log.sites?.name}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-medium text-green-600">
+                        BHD {log.total_pay?.toFixed(2)}
+                      </p>
+                      <p className="text-xs text-gray-500">{log.date}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Top Employees */}
+        <div className="card">
+          <div className="card-header">
+            <h3 className="text-lg font-semibold text-gray-900">Top Employees</h3>
+          </div>
+          <div className="card-body">
+            {stats.topEmployees.length === 0 ? (
+              <div className="text-center py-8">
+                <TrendingUp size={48} className="mx-auto text-gray-400 mb-4" />
+                <p className="text-gray-500">No employee data available</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {stats.topEmployees.map((item, index) => (
+                  <div key={index} className="flex items-center gap-sm p-3 bg-gray-50 rounded-lg">
+                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                      <span className="text-sm font-bold text-blue-600">{index + 1}</span>
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium text-gray-900">{item.employees?.name}</p>
+                      <p className="text-sm text-gray-600">{item.employees?.designation}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-medium text-blue-600">
+                        {item.hours_worked} hours
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         </div>
       </div>
 
-      {/* Statistics Cards */}
-      <div className="responsive-grid-4 gap-4">
-        <Link to="/employees" className="card p-4 hover:shadow-md transition-shadow cursor-pointer">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Users size={20} className="text-blue-600" />
-              </div>
-            </div>
-            <div className="ml-3 min-w-0 flex-1">
-              <p className="text-sm font-medium text-gray-600 truncate">Total Employees</p>
-              <p className="text-xl font-semibold text-gray-900 tabular-nums truncate">{stats.totalEmployees}</p>
-            </div>
-          </div>
-        </Link>
-
-        <Link to="/monthly-summaries" className="card p-4 hover:shadow-md transition-shadow cursor-pointer">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                <DollarSign size={20} className="text-green-600" />
-              </div>
-            </div>
-            <div className="ml-3 min-w-0 flex-1">
-              <p className="text-sm font-medium text-gray-600 truncate">Total Pay</p>
-              <p className="text-xl font-semibold text-gray-900 tabular-nums truncate">{formatCurrency(stats.totalExpenses)}</p>
-            </div>
-          </div>
-        </Link>
-
-        <Link to="/salary-advances" className="card p-4 hover:shadow-md transition-shadow cursor-pointer">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-                <TrendingUp size={20} className="text-red-600" />
-              </div>
-            </div>
-            <div className="ml-3 min-w-0 flex-1">
-              <p className="text-sm font-medium text-gray-600 truncate">Advance Deductions</p>
-              <p className="text-xl font-semibold text-gray-900 tabular-nums truncate">{formatCurrency(667)}</p>
-            </div>
-          </div>
-        </Link>
-
-        <Link to="/monthly-summaries" className="card p-4 hover:shadow-md transition-shadow cursor-pointer">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                <BarChart3 size={20} className="text-blue-600" />
-              </div>
-            </div>
-            <div className="ml-3 min-w-0 flex-1">
-              <p className="text-sm font-medium text-gray-600 truncate">Net Pay</p>
-              <p className="text-xl font-semibold text-gray-900 tabular-nums truncate">{formatCurrency(stats.totalExpenses + 667)}</p>
-            </div>
-          </div>
-        </Link>
-      </div>
-
-      {/* Quick Actions */}
+      {/* Site Performance */}
       <div className="card">
         <div className="card-header">
-          <h3 className="text-lg font-medium text-gray-900">Quick Actions</h3>
+          <h3 className="text-lg font-semibold text-gray-900">Site Performance</h3>
         </div>
         <div className="card-body">
-          <div className="responsive-grid-4 gap-3">
-            <Link to="/daily-logs" className="btn btn-outline flex items-center justify-center space-x-2 h-10">
-              <Plus size={16} />
-              <span>Add Daily Log</span>
-            </Link>
-            <Link to="/employees" className="btn btn-outline flex items-center justify-center space-x-2 h-10">
-              <Users size={16} />
-              <span>Manage Employees</span>
-            </Link>
-            <Link to="/sites" className="btn btn-outline flex items-center justify-center space-x-2 h-10">
-              <Building size={16} />
-              <span>Manage Sites</span>
-            </Link>
-            <Link to="/monthly-summaries" className="btn btn-outline flex items-center justify-center space-x-2 h-10">
-              <Calendar size={16} />
-              <span>Generate Report</span>
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      {/* Recent Activity */}
-      <div className="card">
-        <div className="card-header">
-          <h3 className="text-lg font-medium text-gray-900">Recent Activity</h3>
-        </div>
-        <div className="card-body">
-          <div className="space-y-4">
-            {recentActivity.map((activity) => (
-              <div key={activity.id} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                <div className="flex-shrink-0">
-                  <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-gray-900 truncate">{activity.action}</p>
-                  <p className="text-xs text-gray-500 mt-1">{activity.time}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+          {stats.siteSummary.length === 0 ? (
+            <div className="text-center py-8">
+              <MapPin size={48} className="mx-auto text-gray-400 mb-4" />
+              <p className="text-gray-500">No site data available</p>
+            </div>
+          ) : (
+            <div className="table-container">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Site</th>
+                    <th>Code</th>
+                    <th>Hours Worked</th>
+                    <th>Total Pay</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stats.siteSummary.map((item, index) => (
+                    <tr key={index}>
+                      <td>
+                        <div className="flex items-center gap-sm">
+                          <MapPin size={16} className="text-gray-400" />
+                          <span className="font-medium">{item.sites?.name}</span>
+                        </div>
+                      </td>
+                      <td className="font-mono">{item.sites?.code}</td>
+                      <td className="font-mono">{item.hours_worked}</td>
+                      <td className="font-mono font-medium text-green-600">
+                        BHD {item.total_pay?.toFixed(2)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
     </div>
