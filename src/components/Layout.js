@@ -128,6 +128,18 @@ const Layout = ({ children }) => {
                     <LogOut size={16} className="mr-3" />
                     Sign out
                   </button>
+                  <button
+                    onClick={() => {
+                      // Force clear all local storage and redirect
+                      localStorage.clear();
+                      sessionStorage.clear();
+                      window.location.href = '/login';
+                    }}
+                    className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                  >
+                    <LogOut size={16} className="mr-3" />
+                    Force Logout
+                  </button>
                 </div>
               )}
             </div>

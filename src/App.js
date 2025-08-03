@@ -17,6 +17,25 @@ import WorkSites from './pages/WorkSites';
 import Profile from './pages/Profile';
 import { useAuth } from './contexts/AuthContext';
 
+// Protected Route Component
+function ProtectedRoute({ children }) {
+  const { userProfile, loading } = useAuth();
+  
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+  
+  if (!userProfile) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  return children;
+}
+
 // Force new deployment - remove API calls
 function App() {
   return (
@@ -25,7 +44,11 @@ function App() {
         <Toaster position="top-right" />
         <Routes>
           <Route path="/login" element={<Login />} />
-          <Route path="/" element={<Layout />}>
+          <Route path="/" element={
+            <ProtectedRoute>
+              <Layout />
+            </ProtectedRoute>
+          }>
             <Route index element={<RoleBasedDashboard />} />
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="leadership" element={<LeadershipDashboard />} />
@@ -47,7 +70,16 @@ function App() {
 
 // Role-based dashboard routing
 function RoleBasedDashboard() {
-  const { userProfile, isLeadership } = useAuth();
+  const { userProfile, isLeadership, loading } = useAuth();
+  
+  // Show loading while checking authentication
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
   
   if (!userProfile) {
     return <Navigate to="/login" replace />;
