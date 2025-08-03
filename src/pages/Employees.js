@@ -5,15 +5,15 @@ import {
   Search, 
   Filter, 
   Download, 
-  Upload, 
-  User, 
-  Clock, 
-  DollarSign, 
-  Briefcase, 
-  XCircle, 
+  Upload,
+  User,
+  Clock,
+  DollarSign,
+  Briefcase,
+  XCircle,
   Edit, 
   Trash2, 
-  MapPin 
+  MapPin
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import EmployeeModal from '../components/EmployeeModal';
@@ -199,10 +199,10 @@ const Employees = () => {
     <div className="space-lg">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-md">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Employees</h1>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Employees</h1>
           <p className="text-gray-600">Manage your workforce and their details</p>
-        </div>
+            </div>
         <div className="flex flex-col sm:flex-row gap-sm">
           <button
             onClick={exportEmployees}
@@ -211,13 +211,13 @@ const Employees = () => {
             <Download size={16} />
             Export
           </button>
-          <button
-            onClick={handleAddEmployee}
+              <button
+                onClick={handleAddEmployee}
             className="btn btn-primary"
-          >
+              >
             <Plus size={16} />
             Add Employee
-          </button>
+              </button>
         </div>
       </div>
 
@@ -287,10 +287,10 @@ const Employees = () => {
       {/* Employees Table */}
       <div className="card">
         <div className="card-body">
-          <div className="table-container">
-            <table className="table">
-              <thead>
-                <tr>
+        <div className="table-container">
+          <table className="table">
+            <thead>
+              <tr>
                   <th>
                     <button
                       onClick={() => {
@@ -307,7 +307,7 @@ const Employees = () => {
                       )}
                     </button>
                   </th>
-                  <th>CPR</th>
+                <th>CPR</th>
                   <th>Designation</th>
                   <th>
                     <button
@@ -325,25 +325,25 @@ const Employees = () => {
                       )}
                     </button>
                   </th>
-                  <th>Category</th>
-                  <th>Employment Type</th>
-                  <th>Work Type</th>
+                <th>Category</th>
+                <th>Employment Type</th>
+                <th>Work Type</th>
                   <th>NT Rate</th>
                   <th>ROT Rate</th>
                   <th>HOT Rate</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
                 {sortedEmployees.length === 0 ? (
                   <tr>
                     <td colSpan="11" className="text-center py-8 text-gray-500">
                       {searchTerm || filterCategory || filterWorkType || filterEmploymentType
                         ? 'No employees match your filters'
                         : 'No employees found. Add your first employee to get started.'}
-                    </td>
-                  </tr>
-                ) : (
+                  </td>
+                </tr>
+              ) : (
                   sortedEmployees.map((employee) => (
                     <tr key={employee.id}>
                       <td>
@@ -395,20 +395,20 @@ const Employees = () => {
                           >
                             <Edit size={14} />
                           </button>
-                          <button
+                            <button
                             onClick={() => handleDeleteEmployee(employee.id)}
                             className="btn btn-ghost btn-sm text-red-600 hover:text-red-700"
-                            title="Delete"
-                          >
+                              title="Delete"
+                            >
                             <Trash2 size={14} />
-                          </button>
+                            </button>
                         </div>
                       </td>
                     </tr>
                   ))
-                )}
-              </tbody>
-            </table>
+              )}
+            </tbody>
+          </table>
           </div>
         </div>
       </div>
