@@ -1,12 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import axios from 'axios';
+import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
 
-// Create separate contexts for Auth and Month
 const AuthContext = createContext();
-const MonthContext = createContext();
 
-// Custom hook for auth
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
@@ -15,32 +12,21 @@ export const useAuth = () => {
   return context;
 };
 
-// Custom hook for month selection
 export const useMonth = () => {
-  const context = useContext(MonthContext);
+  const context = useContext(AuthContext);
   if (!context) {
     throw new Error('useMonth must be used within a MonthProvider');
   }
   return context;
 };
 
-// Month Provider Component
 export const MonthProvider = ({ children }) => {
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
-    return {
-      month: now.getMonth() + 1, // 1-12
-      year: now.getFullYear()
-    };
+    return { month: now.getMonth() + 1, year: now.getFullYear() };
   });
 
-  const [currentMonth, setCurrentMonth] = useState(() => {
-    const now = new Date();
-    return {
-      month: now.getMonth() + 1,
-      year: now.getFullYear()
-    };
-  });
+  const currentMonth = { month: new Date().getMonth() + 1, year: new Date().getFullYear() };
 
   const changeMonth = (month, year) => {
     setSelectedMonth({ month, year });
@@ -51,21 +37,28 @@ export const MonthProvider = ({ children }) => {
   };
 
   const goToPreviousMonth = () => {
-    const prevMonth = selectedMonth.month === 1 ? 12 : selectedMonth.month - 1;
-    const prevYear = selectedMonth.month === 1 ? selectedMonth.year - 1 : selectedMonth.year;
-    setSelectedMonth({ month: prevMonth, year: prevYear });
+    setSelectedMonth(prev => {
+      if (prev.month === 1) {
+        return { month: 12, year: prev.year - 1 };
+      }
+      return { month: prev.month - 1, year: prev.year };
+    });
   };
 
   const goToNextMonth = () => {
-    const nextMonth = selectedMonth.month === 12 ? 1 : selectedMonth.month + 1;
-    const nextYear = selectedMonth.month === 12 ? selectedMonth.year + 1 : selectedMonth.year;
-    setSelectedMonth({ month: nextMonth, year: nextYear });
+    setSelectedMonth(prev => {
+      if (prev.month === 12) {
+        return { month: 1, year: prev.year + 1 };
+      }
+      return { month: prev.month + 1, year: prev.year };
+    });
   };
 
   const isCurrentMonth = selectedMonth.month === currentMonth.month && selectedMonth.year === currentMonth.year;
 
   const getMonthName = (month, year) => {
-    return new Date(year, month - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    const date = new Date(year, month - 1);
+    return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   };
 
   const getSelectedMonthName = () => getMonthName(selectedMonth.month, selectedMonth.year);
@@ -90,148 +83,184 @@ export const MonthProvider = ({ children }) => {
   );
 };
 
-// Auth Provider Component
+const MonthContext = createContext();
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [token, setToken] = useState(localStorage.getItem('token'));
+  const [userProfile, setUserProfile] = useState(null);
 
-  // Set up axios defaults
-  useEffect(() => {
-    if (token) {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-    } else {
-      delete axios.defaults.headers.common['Authorization'];
-    }
-  }, [token]);
-
-  // Check if user is authenticated on mount
   useEffect(() => {
     const checkAuth = async () => {
-      // Check for demo user first
-      const demoUser = localStorage.getItem('demo_user');
-      if (demoUser) {
-        const userData = JSON.parse(demoUser);
-        setUser(userData);
-        setToken('demo-token');
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        setUser(session?.user || null);
         setLoading(false);
-        return;
+      } catch (error) {
+        console.error('Auth check error:', error);
+        setLoading(false);
       }
-
-      if (token) {
-        try {
-          const response = await axios.get('/api/auth/profile');
-          setUser(response.data.user);
-        } catch (error) {
-          console.error('Auth check failed:', error);
-          logout();
-        }
-      }
-      setLoading(false);
     };
 
     checkAuth();
-  }, [token]);
 
-  const login = async (email, password) => {
-    // Demo mode authentication
-    const demoUsers = {
-      'admin@interlock.com': { id: 'demo-admin', name: 'Admin User', role: 'admin' },
-      'viewer@interlock.com': { id: 'demo-viewer', name: 'Viewer User', role: 'viewer' },
-      'leadership@interlock.com': { id: 'demo-leadership', name: 'Leadership User', role: 'leadership' }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        setUser(session?.user || null);
+        setLoading(false);
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Fetch user profile when user changes
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (!user) {
+        setUserProfile(null);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, role, name')
+          .eq('id', user.id)
+          .single();
+
+        if (error) throw error;
+        setUserProfile(data);
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
+        setUserProfile(null);
+      }
     };
 
-    // Check if it's a demo user
-    if (demoUsers[email]) {
-      const userData = demoUsers[email];
-      const demoToken = 'demo-token-' + userData.role;
-      
-      setToken(demoToken);
-      setUser(userData);
-      localStorage.setItem('token', demoToken);
-      localStorage.setItem('demo_user', JSON.stringify(userData));
-      
-      toast.success('Demo login successful!');
-      return { success: true };
-    }
+    fetchUserProfile();
+  }, [user]);
 
-    // Try API login if not demo user
+  const login = async (email, password) => {
     try {
-      const response = await axios.post('/api/auth/login', { email, password });
-      const { token: newToken, user: userData } = response.data;
-      
-      setToken(newToken);
-      setUser(userData);
-      localStorage.setItem('token', newToken);
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
       
       toast.success('Login successful!');
-      return { success: true };
+      return { success: true, data };
     } catch (error) {
-      const message = error.response?.data?.error || 'Login failed';
-      toast.error(message);
-      return { success: false, error: message };
+      console.error('Login error:', error);
+      toast.error(error.message || 'Login failed');
+      return { success: false, error: error.message };
     }
   };
 
-  const logout = () => {
-    setUser(null);
-    setToken(null);
-    localStorage.removeItem('token');
-    localStorage.removeItem('demo_user');
-    delete axios.defaults.headers.common['Authorization'];
-    toast.success('Logged out successfully');
+  const signup = async (email, password, name) => {
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name: name,
+          },
+        },
+      });
+
+      if (error) throw error;
+      
+      toast.success('Account created! Please check your email to confirm your account.');
+      return { success: true, data };
+    } catch (error) {
+      console.error('Signup error:', error);
+      toast.error(error.message || 'Registration failed');
+      return { success: false, error: error.message };
+    }
   };
 
-  const register = async (userData) => {
+  const logout = async () => {
     try {
-      const response = await axios.post('/api/auth/register', userData);
-      toast.success('User created successfully!');
-      return { success: true, data: response.data };
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      setUser(null);
+      setUserProfile(null);
+      toast.success('Logged out successfully');
     } catch (error) {
-      const message = error.response?.data?.error || 'Registration failed';
-      toast.error(message);
-      return { success: false, error: message };
+      console.error('Logout error:', error);
+      toast.error('Logout failed');
     }
   };
 
   const updateProfile = async (profileData) => {
     try {
-      const response = await axios.put('/api/auth/profile', profileData);
-      setUser(prev => ({ ...prev, ...profileData }));
+      const { error } = await supabase
+        .from('profiles')
+        .update(profileData)
+        .eq('id', user.id);
+
+      if (error) throw error;
+      
+      setUserProfile(prev => ({ ...prev, ...profileData }));
       toast.success('Profile updated successfully!');
       return { success: true };
     } catch (error) {
-      const message = error.response?.data?.error || 'Profile update failed';
-      toast.error(message);
-      return { success: false, error: message };
+      console.error('Profile update error:', error);
+      toast.error(error.message || 'Profile update failed');
+      return { success: false, error: error.message };
     }
   };
 
   const changePassword = async (currentPassword, newPassword) => {
     try {
-      await axios.post('/api/auth/change-password', { currentPassword, newPassword });
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (error) throw error;
+      
       toast.success('Password changed successfully!');
       return { success: true };
     } catch (error) {
-      const message = error.response?.data?.error || 'Password change failed';
-      toast.error(message);
-      return { success: false, error: message };
+      console.error('Password change error:', error);
+      toast.error(error.message || 'Password change failed');
+      return { success: false, error: error.message };
     }
+  };
+
+  // Role-based access control
+  const roleHierarchy = {
+    viewer: 1,
+    admin: 2,
+    leadership: 3,
+  };
+
+  const isAdmin = userProfile?.role === 'admin';
+  const isLeadership = userProfile?.role === 'leadership';
+  const isViewer = userProfile?.role === 'viewer';
+
+  const hasPermission = (requiredRole) => {
+    if (!userProfile) return false;
+    return roleHierarchy[userProfile.role] >= roleHierarchy[requiredRole];
   };
 
   const value = {
     user,
-    token,
+    userProfile,
     loading,
     login,
+    signup,
     logout,
-    register,
     updateProfile,
     changePassword,
-    isAuthenticated: !!user,
-    isAdmin: user?.role === 'admin',
-    isViewer: user?.role === 'viewer' || user?.role === 'admin',
-    isLeadership: user?.role === 'leadership'
+    isAdmin,
+    isLeadership,
+    isViewer,
+    hasPermission,
+    roleHierarchy
   };
 
   return (
