@@ -89,6 +89,14 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [userProfile, setUserProfile] = useState(null);
+  
+  // Month selection state
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const now = new Date();
+    return { month: now.getMonth() + 1, year: now.getFullYear() };
+  });
+
+  const currentMonth = { month: new Date().getMonth() + 1, year: new Date().getFullYear() };
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -247,6 +255,43 @@ export const AuthProvider = ({ children }) => {
     return roleHierarchy[userProfile.role] >= roleHierarchy[requiredRole];
   };
 
+  // Month selection functions
+  const changeMonth = (month, year) => {
+    setSelectedMonth({ month, year });
+  };
+
+  const goToCurrentMonth = () => {
+    setSelectedMonth(currentMonth);
+  };
+
+  const goToPreviousMonth = () => {
+    setSelectedMonth(prev => {
+      if (prev.month === 1) {
+        return { month: 12, year: prev.year - 1 };
+      }
+      return { month: prev.month - 1, year: prev.year };
+    });
+  };
+
+  const goToNextMonth = () => {
+    setSelectedMonth(prev => {
+      if (prev.month === 12) {
+        return { month: 1, year: prev.year + 1 };
+      }
+      return { month: prev.month + 1, year: prev.year };
+    });
+  };
+
+  const isCurrentMonth = selectedMonth.month === currentMonth.month && selectedMonth.year === currentMonth.year;
+
+  const getMonthName = (month, year) => {
+    const date = new Date(year, month - 1);
+    return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  };
+
+  const getSelectedMonthName = () => getMonthName(selectedMonth.month, selectedMonth.year);
+  const getCurrentMonthName = () => getMonthName(currentMonth.month, currentMonth.year);
+
   const value = {
     user,
     userProfile,
@@ -260,7 +305,17 @@ export const AuthProvider = ({ children }) => {
     isLeadership,
     isViewer,
     hasPermission,
-    roleHierarchy
+    roleHierarchy,
+    // Month selection values
+    selectedMonth,
+    currentMonth,
+    changeMonth,
+    goToCurrentMonth,
+    goToPreviousMonth,
+    goToNextMonth,
+    isCurrentMonth,
+    getSelectedMonthName,
+    getCurrentMonthName
   };
 
   return (
