@@ -150,17 +150,23 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
+      console.log('🔧 Login attempt:', { email, password });
+      console.log('🔧 Supabase client:', supabase ? 'Available' : 'Not available');
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
+      console.log('🔧 Login response:', { data, error });
+
       if (error) throw error;
       
+      console.log('✅ Login successful!');
       toast.success('Login successful!');
       return { success: true, data };
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('❌ Login error:', error);
       toast.error(error.message || 'Login failed');
       return { success: false, error: error.message };
     }
