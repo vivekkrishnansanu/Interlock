@@ -1,6 +1,6 @@
 import React from 'react';
 import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
-import { useMonth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 
 const MonthSelector = ({ className = '', showCurrentMonthButton = true }) => {
   const {
@@ -13,7 +13,7 @@ const MonthSelector = ({ className = '', showCurrentMonthButton = true }) => {
     isCurrentMonth,
     getSelectedMonthName,
     getCurrentMonthName
-  } = useMonth();
+  } = useAuth();
 
   const handleMonthChange = (e) => {
     const [month, year] = e.target.value.split('-');
