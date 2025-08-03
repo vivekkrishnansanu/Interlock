@@ -113,7 +113,7 @@ const Allowances = () => {
   };
 
   const handleDeleteAllowance = async (allowanceId) => {
-    if (!confirm('Are you sure you want to delete this allowance?')) return;
+    if (!window.confirm('Are you sure you want to delete this allowance?')) return;
     
     try {
       const { error } = await supabase

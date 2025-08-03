@@ -141,7 +141,7 @@ const WorkSites = () => {
   };
 
   const handleDeleteLog = async (logId) => {
-    if (!confirm('Are you sure you want to delete this log entry?')) return;
+    if (!window.confirm('Are you sure you want to delete this log entry?')) return;
     
     try {
       const { error } = await supabase

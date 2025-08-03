@@ -133,7 +133,7 @@ const Employees = () => {
   };
 
   const handleDeleteEmployee = async (employeeId) => {
-    if (!confirm('Are you sure you want to delete this employee?')) return;
+    if (!window.confirm('Are you sure you want to delete this employee?')) return;
     
     try {
       const { error } = await supabase

@@ -84,7 +84,7 @@ const Sites = () => {
   };
 
   const handleDeleteSite = async (siteId) => {
-    if (!confirm('Are you sure you want to delete this site?')) return;
+    if (!window.confirm('Are you sure you want to delete this site?')) return;
     
     try {
       const { error } = await supabase
