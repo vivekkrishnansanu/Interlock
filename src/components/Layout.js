@@ -21,13 +21,13 @@ import {
 } from 'lucide-react';
 
 const Layout = ({ children }) => {
-  const { user, logout } = useAuth();
+  const { user, userProfile, logout } = useAuth();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   const navigation = [
-    { name: user?.role === 'leadership' ? 'Leadership Dashboard' : 'Dashboard', href: '/', icon: Home, role: 'viewer' },
+    { name: userProfile?.role === 'leadership' ? 'Leadership Dashboard' : 'Dashboard', href: '/', icon: Home, role: 'viewer' },
     { name: 'Leadership Dashboard', href: '/leadership', icon: BarChart3, role: 'leadership' },
     { name: 'Employees', href: '/employees', icon: Users, role: 'admin' },
     { name: 'Daily Logs', href: '/daily-logs', icon: Calendar, role: 'admin' },
@@ -41,12 +41,12 @@ const Layout = ({ children }) => {
 
   const filteredNavigation = navigation.filter(item => {
     // For leadership users, don't show the separate Leadership Dashboard link since they already have it as default
-    if (user?.role === 'leadership' && item.href === '/leadership') {
+    if (userProfile?.role === 'leadership' && item.href === '/leadership') {
       return false;
     }
     
     const roleHierarchy = { viewer: 1, admin: 2, leadership: 3 };
-    const userRoleLevel = roleHierarchy[user?.role] || 1;
+    const userRoleLevel = roleHierarchy[userProfile?.role] || 1;
     const requiredRoleLevel = roleHierarchy[item.role] || 1;
     return userRoleLevel >= requiredRoleLevel;
   });
@@ -93,10 +93,10 @@ const Layout = ({ children }) => {
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-gray-900 truncate">
-                  {user?.name || 'User'}
+                  {userProfile?.name || 'User'}
                 </p>
                 <p className="text-xs text-gray-500 capitalize">
-                  {user?.role || 'viewer'}
+                  {userProfile?.role || 'viewer'}
                 </p>
               </div>
             </div>
@@ -148,7 +148,7 @@ const Layout = ({ children }) => {
                 {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
               </button>
               <h1 className="text-lg font-semibold text-gray-900">
-                {location.pathname === '/' && user?.role === 'leadership' 
+                {location.pathname === '/' && userProfile?.role === 'leadership' 
                   ? 'Leadership Dashboard' 
                   : filteredNavigation.find(item => item.href === location.pathname)?.name || 'Dashboard'}
               </h1>

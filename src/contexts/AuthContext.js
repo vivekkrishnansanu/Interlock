@@ -191,12 +191,15 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
+      console.log('Logout initiated...');
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       
+      console.log('Supabase logout successful, clearing local state...');
       setUser(null);
       setUserProfile(null);
       toast.success('Logged out successfully');
+      console.log('Logout completed successfully');
     } catch (error) {
       console.error('Logout error:', error);
       toast.error('Logout failed');
