@@ -707,6 +707,144 @@ app.delete('/api/salary-advances/:id', authenticateUser, requireRole(['admin']),
 });
 
 // ========================================
+// USER MANAGEMENT ROUTES
+// ========================================
+
+// Get all users (admin/editor only)
+app.get('/api/users', authenticateUser, requireRole(['admin', 'editor']), async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    res.json(data || []);
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+// Create new user (admin/editor only)
+app.post('/api/users', authenticateUser, requireRole(['admin', 'editor']), async (req, res) => {
+  try {
+    const { name, email, role, password } = req.body;
+
+    if (!name || !email || !role || !password) {
+      return res.status(400).json({ error: 'All fields are required' });
+    }
+
+    // Create user in Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: {
+        name: name
+      }
+    });
+
+    if (authError) {
+      return res.status(400).json({ error: authError.message });
+    }
+
+    // Create profile in profiles table
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .insert({
+        id: authData.user.id,
+        name: name,
+        email: email,
+        role: role
+      });
+
+    if (profileError) {
+      // If profile creation fails, delete the auth user
+      await supabase.auth.admin.deleteUser(authData.user.id);
+      throw profileError;
+    }
+
+    res.json({ 
+      message: 'User created successfully',
+      user: {
+        id: authData.user.id,
+        name: name,
+        email: email,
+        role: role
+      }
+    });
+  } catch (error) {
+    console.error('Error creating user:', error);
+    res.status(500).json({ error: error.message || 'Failed to create user' });
+  }
+});
+
+// Update user (admin/editor only)
+app.put('/api/users/:id', authenticateUser, requireRole(['admin', 'editor']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, email, role } = req.body;
+
+    if (!name || !email || !role) {
+      return res.status(400).json({ error: 'All fields are required' });
+    }
+
+    // Update profile
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        name: name,
+        email: email,
+        role: role,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id);
+
+    if (error) throw error;
+
+    res.json({ message: 'User updated successfully' });
+  } catch (error) {
+    console.error('Error updating user:', error);
+    res.status(500).json({ error: 'Failed to update user' });
+  }
+});
+
+// Delete user (admin/editor only)
+app.delete('/api/users/:id', authenticateUser, requireRole(['admin', 'editor']), async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Prevent self-deletion
+    if (id === req.user.id) {
+      return res.status(400).json({ error: 'Cannot delete your own account' });
+    }
+
+    // Delete from profiles table first
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .delete()
+      .eq('id', id);
+
+    if (profileError) throw profileError;
+
+    // Delete from auth users
+    const { error: authError } = await supabase.auth.admin.deleteUser(id);
+    
+    if (authError) {
+      console.error('Error deleting auth user:', authError);
+      // Continue anyway as the profile is deleted
+    }
+
+    res.json({ message: 'User deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({ error: 'Failed to delete user' });
+  }
+});
+
+// ========================================
 // REPORTS ROUTES
 // ========================================
 
