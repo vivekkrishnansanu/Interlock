@@ -2,6 +2,21 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Reset and base styles */
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+#root {
+  height: 100%;
+}
+
 /* Linear Design System Implementation */
 
 /* Color System - Linear's Palette */
@@ -29,11 +44,13 @@
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    background-color: var(--linear-bg-secondary);
   }
   
   body {
-    @apply bg-white text-gray-900;
+    @apply text-gray-900;
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    background-color: var(--linear-bg-secondary);
   }
 
   /* Linear's Typography Scale */
@@ -60,74 +77,95 @@
 
 /* Linear's Component System */
 @layer components {
-  /* Button System */
+  /* Button System - Linear Style */
   .btn {
-    @apply inline-flex items-center justify-center px-4 py-2.5 text-sm font-medium rounded-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    border: 1px solid transparent;
   }
   
   .btn-primary {
     @apply bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500 shadow-sm;
+    background-color: var(--linear-primary);
+    border-color: var(--linear-primary);
   }
   
+  .btn-primary:hover {
+    background-color: var(--linear-primary-hover);
+    border-color: var(--linear-primary-hover);
+  }
+
   .btn-secondary {
     @apply bg-gray-100 text-gray-900 hover:bg-gray-200 focus:ring-gray-500 border border-gray-300;
+    background-color: var(--linear-bg-tertiary);
+    border-color: var(--linear-border);
   }
 
   .btn-outline {
     @apply bg-white text-gray-700 hover:bg-gray-50 focus:ring-blue-500 border border-gray-300 shadow-sm;
+    background-color: var(--linear-bg-primary);
+    border-color: var(--linear-border);
+  }
+
+  .btn-outline:hover {
+    background-color: var(--linear-bg-secondary);
+    border-color: var(--linear-border-hover);
   }
 
   .btn-ghost {
     @apply bg-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus:ring-gray-500;
+    background-color: transparent;
   }
   
   .btn-danger {
     @apply bg-red-600 text-white hover:bg-red-700 focus:ring-red-500 shadow-sm;
+    background-color: var(--linear-error);
   }
 
   .btn-success {
     @apply bg-green-600 text-white hover:bg-green-700 focus:ring-green-500 shadow-sm;
+    background-color: var(--linear-success);
   }
 
-  /* Input System */
-  /* Form elements */
+  /* Input System - Linear Style */
   .input {
     @apply w-full px-3 py-2 text-sm border border-gray-300 rounded-md shadow-sm bg-white;
     @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500;
     @apply disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed;
     @apply transition-colors duration-200;
+    border-color: var(--linear-border);
+    background-color: var(--linear-bg-primary);
   }
 
-  /* Select dropdown styling */
-  select.input {
-    @apply appearance-none;
-    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
-    background-position: right 0.5rem center;
-    background-repeat: no-repeat;
-    background-size: 1.5em 1.5em;
-    padding-right: 2.5rem;
+  .input:focus {
+    border-color: var(--linear-primary);
+    box-shadow: 0 0 0 2px rgba(94, 106, 210, 0.1);
   }
 
-  select.input:focus {
-    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%233b82f6' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+  .form-input {
+    @apply input;
   }
 
-  select.input:disabled {
-    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+  .form-select {
+    @apply input;
   }
 
   .input-error {
     @apply border-red-300 focus:ring-red-500 focus:border-red-500;
+    border-color: var(--linear-error);
   }
 
-  /* Card System */
+  /* Card System - Linear Style */
   .card {
     @apply bg-white rounded-lg border border-gray-200 shadow-sm;
+    background-color: var(--linear-bg-primary);
+    border-color: var(--linear-border);
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
   }
 
   .card-header {
     @apply px-6 py-4 border-b border-gray-200;
+    border-color: var(--linear-border);
   }
 
   .card-body {
@@ -136,69 +174,99 @@
 
   .card-footer {
     @apply px-6 py-4 border-t border-gray-200 bg-gray-50;
+    border-color: var(--linear-border);
+    background-color: var(--linear-bg-secondary);
   }
 
-  /* Table System */
+  /* Table System - Linear Style */
   .table {
     @apply min-w-full divide-y divide-gray-200;
   }
 
   .table thead {
     @apply bg-gray-50;
+    background-color: var(--linear-bg-secondary);
   }
   
   .table th {
     @apply px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider;
+    color: var(--linear-text-secondary);
   }
   
   .table td {
     @apply px-6 py-4 whitespace-nowrap text-sm text-gray-900;
+    color: var(--linear-text-primary);
   }
 
   .table tbody tr {
     @apply hover:bg-gray-50 transition-colors duration-150;
   }
 
-  .table-container {
-    @apply overflow-x-auto rounded-lg border border-gray-200;
+  .table tbody tr:hover {
+    background-color: var(--linear-bg-secondary);
   }
 
-  /* Badge System */
+  .table-container {
+    @apply overflow-x-auto rounded-lg border border-gray-200;
+    border-color: var(--linear-border);
+  }
+
+  /* Badge System - Linear Style */
   .badge {
     @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
   }
 
   .badge-primary {
     @apply bg-blue-100 text-blue-800;
+    background-color: rgba(94, 106, 210, 0.1);
+    color: var(--linear-primary);
   }
 
   .badge-secondary {
     @apply bg-gray-100 text-gray-800;
+    background-color: var(--linear-bg-tertiary);
+    color: var(--linear-text-secondary);
   }
 
   .badge-success {
     @apply bg-green-100 text-green-800;
+    background-color: rgba(16, 185, 129, 0.1);
+    color: var(--linear-success);
   }
 
   .badge-warning {
     @apply bg-yellow-100 text-yellow-800;
+    background-color: rgba(245, 158, 11, 0.1);
+    color: var(--linear-warning);
   }
 
   .badge-error {
     @apply bg-red-100 text-red-800;
+    background-color: rgba(239, 68, 68, 0.1);
+    color: var(--linear-error);
   }
 
-  /* Modal System */
+  .badge-outline {
+    @apply bg-white text-gray-700 border border-gray-300;
+    background-color: var(--linear-bg-primary);
+    border-color: var(--linear-border);
+    color: var(--linear-text-secondary);
+  }
+
+  /* Modal System - Linear Style */
   .modal-overlay {
     @apply fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50;
   }
 
   .modal-content {
     @apply bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto;
+    background-color: var(--linear-bg-primary);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
   }
 
   .modal-header {
     @apply px-6 py-4 border-b border-gray-200;
+    border-color: var(--linear-border);
   }
 
   .modal-body {
@@ -207,69 +275,73 @@
 
   .modal-footer {
     @apply px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end space-x-3;
+    border-color: var(--linear-border);
+    background-color: var(--linear-bg-secondary);
   }
 
-  /* Form System */
+  /* Form System - Linear Style */
   .form-group {
     @apply mb-6;
   }
 
   .form-label {
     @apply block text-sm font-medium text-gray-700 mb-2;
+    color: var(--linear-text-primary);
   }
 
   .form-error {
-    @apply mt-1 text-sm text-red-600;
+    @apply text-sm text-red-600 mt-1;
+    color: var(--linear-error);
   }
 
   .form-help {
-    @apply mt-1 text-xs text-gray-500;
+    @apply text-sm text-gray-500 mt-1;
+    color: var(--linear-text-tertiary);
   }
 
-  /* Navigation System */
-  .nav-item {
-    @apply flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200;
-  }
-
-  .nav-item-active {
-    @apply bg-blue-100 text-blue-700;
-  }
-
-  .nav-item-inactive {
-    @apply text-gray-600 hover:text-gray-900 hover:bg-gray-100;
-  }
-
-  /* Layout System */
+  /* Layout System - Linear Style */
   .layout-sidebar {
     @apply fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200;
     @apply flex flex-col;
+    background-color: var(--linear-bg-primary);
+    border-color: var(--linear-border);
   }
 
   .layout-main {
-    @apply flex-1 min-h-screen;
+    @apply flex-1 min-h-screen ml-64;
   }
 
   .layout-content {
-    @apply p-6 max-w-full;
+    @apply p-8 max-w-full;
   }
 
-  /* Sidebar Navigation */
+  /* Sidebar Navigation - Linear Style */
   .nav-item {
     @apply flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200;
     @apply text-gray-700 hover:text-gray-900 hover:bg-gray-100;
+    color: var(--linear-text-secondary);
+  }
+
+  .nav-item:hover {
+    background-color: var(--linear-bg-secondary);
+    color: var(--linear-text-primary);
   }
 
   .nav-item-active {
     @apply bg-blue-50 text-blue-700 hover:bg-blue-100;
+    background-color: rgba(94, 106, 210, 0.1);
+    color: var(--linear-primary);
   }
 
   .nav-item-inactive {
     @apply text-gray-700 hover:text-gray-900 hover:bg-gray-100;
+    color: var(--linear-text-secondary);
   }
 
-  /* Sidebar Structure */
+  /* Sidebar Structure - Linear Style */
   .sidebar-header {
     @apply flex items-center px-6 py-4 border-b border-gray-200;
+    border-color: var(--linear-border);
   }
 
   .sidebar-nav {
@@ -279,11 +351,7 @@
 
   .sidebar-footer {
     @apply flex-shrink-0 border-t border-gray-200 p-4;
-  }
-
-  /* Ensure main content doesn't overlap sidebar */
-  .layout-main {
-    @apply ml-64;
+    border-color: var(--linear-border);
   }
 
   /* Responsive sidebar */
@@ -301,12 +369,11 @@
     }
   }
 
-  /* Utility Classes */
+  /* Utility Classes - Linear Style */
   .tabular-nums {
     font-variant-numeric: tabular-nums;
   }
 
-  /* Text overflow handling */
   .text-overflow-safe {
     overflow: hidden;
     text-overflow: ellipsis;
@@ -321,11 +388,24 @@
   }
 
   /* Linear's Spacing System */
-  .space-xs { @apply space-y-1; }
-  .space-sm { @apply space-y-2; }
-  .space-md { @apply space-y-4; }
-  .space-lg { @apply space-y-6; }
-  .space-xl { @apply space-y-8; }
+  .space-xs { margin-bottom: 0.25rem; }
+  .space-sm { margin-bottom: 0.5rem; }
+  .space-md { margin-bottom: 1rem; }
+  .space-lg { margin-bottom: 1.5rem; }
+  .space-xl { margin-bottom: 2rem; }
+
+  /* Component spacing */
+  .space-y-1 > * + * { margin-top: 0.25rem; }
+  .space-y-2 > * + * { margin-top: 0.5rem; }
+  .space-y-3 > * + * { margin-top: 0.75rem; }
+  .space-y-4 > * + * { margin-top: 1rem; }
+  .space-y-6 > * + * { margin-top: 1.5rem; }
+  .space-y-8 > * + * { margin-top: 2rem; }
+
+  /* Grid spacing */
+  .gap-sm { gap: 0.5rem; }
+  .gap-md { gap: 1rem; }
+  .gap-lg { gap: 1.5rem; }
 
   /* Linear's Shadow System */
   .shadow-xs { box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); }
@@ -338,19 +418,19 @@
   .transition-normal { @apply transition-all duration-200; }
   .transition-slow { @apply transition-all duration-300; }
 
-  /* Linear's Focus System */
+  /* Focus states - Linear Style */
   .focus-ring {
     @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2;
   }
 
-  /* Linear's Interactive States */
+  /* Interactive elements - Linear Style */
   .interactive {
-    @apply transition-all duration-200 hover:shadow-md active:shadow-sm;
+    @apply cursor-pointer transition-all duration-200;
   }
 
-  /* Linear's Status Indicators */
+  /* Status indicators - Linear Style */
   .status-dot {
-    @apply inline-block w-2 h-2 rounded-full;
+    @apply w-3 h-3 rounded-full;
   }
 
   .status-dot-online { @apply bg-green-400; }
@@ -358,16 +438,16 @@
   .status-dot-busy { @apply bg-red-400; }
   .status-dot-away { @apply bg-yellow-400; }
 
-  /* Linear's Data Display */
+  /* Data grid - Linear Style */
   .data-grid {
-    @apply grid gap-4;
+    @apply grid gap-6;
   }
 
   .data-grid-2 { @apply grid-cols-1 md:grid-cols-2; }
   .data-grid-3 { @apply grid-cols-1 md:grid-cols-2 lg:grid-cols-3; }
   .data-grid-4 { @apply grid-cols-1 md:grid-cols-2 lg:grid-cols-4; }
 
-  /* Linear's Loading States */
+  /* Loading states - Linear Style */
   .loading-skeleton {
     @apply animate-pulse bg-gray-200 rounded;
   }
@@ -376,30 +456,29 @@
     @apply animate-spin rounded-full border-2 border-gray-300 border-t-blue-600;
   }
 
-  /* Linear's Empty States */
+  /* Empty states - Linear Style */
   .empty-state {
     @apply text-center py-12;
   }
 
   .empty-state-icon {
-    @apply mx-auto h-12 w-12 text-gray-400;
+    @apply mx-auto text-gray-300 mb-4;
   }
 
   .empty-state-title {
-    @apply mt-2 text-sm font-medium text-gray-900;
+    @apply text-lg font-medium text-gray-900 mb-2;
   }
 
   .empty-state-description {
-    @apply mt-1 text-sm text-gray-500;
+    @apply text-gray-500 mb-6;
   }
-}
 
-/* Linear's Responsive Design */
-@layer utilities {
+  /* Container - Linear Style */
   .container-linear {
     @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
   }
 
+  /* Sidebar states - Linear Style */
   .sidebar-collapsed {
     @apply w-16;
   }
@@ -409,97 +488,99 @@
   }
 }
 
-/* Linear's Dark Mode Support (if needed later) */
+/* Dark mode support - Linear Style */
 @media (prefers-color-scheme: dark) {
   .dark {
-    --linear-bg-primary: #0F0F0F;
-    --linear-bg-secondary: #1A1A1A;
-    --linear-bg-tertiary: #262626;
-    --linear-text-primary: #FFFFFF;
-    --linear-text-secondary: #A3A3A3;
-    --linear-text-tertiary: #737373;
-    --linear-border: #404040;
-    --linear-border-hover: #525252;
+    --linear-bg-primary: #1F2937;
+    --linear-bg-secondary: #111827;
+    --linear-bg-tertiary: #374151;
+    --linear-border: #374151;
+    --linear-border-hover: #4B5563;
+    --linear-text-primary: #F9FAFB;
+    --linear-text-secondary: #D1D5DB;
+    --linear-text-tertiary: #9CA3AF;
   }
-} 
+}
 
-/* Responsive grid layouts */
+/* Responsive design - Linear Style */
 .responsive-grid {
-  @apply grid gap-6;
-  @apply grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4;
+  @apply grid gap-4;
 }
 
 .responsive-grid-2 {
-  @apply grid gap-6;
-  @apply grid-cols-1 lg:grid-cols-2;
+  @apply grid-cols-1 sm:grid-cols-2;
 }
 
-/* Responsive text */
 .text-responsive {
   @apply text-sm sm:text-base;
 }
 
-/* Prevent horizontal scroll on mobile */
+/* Mobile optimizations - Linear Style */
 @media (max-width: 768px) {
   .layout-content {
     @apply p-4;
   }
-  
+
   .card-body {
-    @apply p-4;
+    @apply px-4 py-4;
   }
-  
+
+  .card-header {
+    @apply px-4 py-3;
+  }
+
   .table th,
   .table td {
-    @apply px-2 py-2;
+    @apply px-3 py-2 text-xs;
   }
-} 
 
-  /* Responsive Grid System */
   .responsive-grid {
-    @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6;
+    @apply grid-cols-1;
   }
 
   .responsive-grid-2 {
-    @apply grid grid-cols-1 lg:grid-cols-2 gap-6;
+    @apply grid-cols-1;
   }
 
   .responsive-grid-3 {
-    @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6;
+    @apply grid-cols-1;
   }
 
   .responsive-grid-4 {
-    @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6;
+    @apply grid-cols-1;
   }
 
-  /* Text Responsive */
   .text-responsive {
-    @apply text-sm md:text-base lg:text-lg;
+    @apply text-sm;
   }
 
-  /* Mobile Responsive Adjustments */
   @media (max-width: 768px) {
     .layout-content {
-      @apply p-4;
+      @apply p-3;
     }
 
     .card-body {
-      @apply px-4 py-4;
+      @apply px-3 py-3;
     }
 
     .card-header {
-      @apply px-4 py-3;
+      @apply px-3 py-2;
     }
 
     .table th,
     .table td {
-      @apply px-2 py-2;
+      @apply px-2 py-1 text-xs;
     }
 
     .responsive-grid,
     .responsive-grid-2,
     .responsive-grid-3,
     .responsive-grid-4 {
-      @apply gap-4;
+      @apply grid-cols-1;
+    }
+
+    .text-responsive {
+      @apply text-xs;
+    }
   }
 } 

@@ -1,52 +1,12 @@
 const { createClient } = require('@supabase/supabase-js');
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+// Hardcoded Supabase configuration
+const supabaseUrl = 'https://nviyxewmtbpstmlhaaic.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im52aXl4ZXdtdGJwc3RtbGhhYWljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQyMDYzMTAsImV4cCI6MjA2OTc4MjMxMH0.GlXEVb_b_Pzp3WDayXBtA6u_9Y6m_Uwq01J2bEVgQ3E';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'your_service_role_key_here';
 
-// Check if we have valid Supabase credentials
-const hasValidCredentials = supabaseUrl && 
-  supabaseAnonKey && 
-  supabaseUrl !== 'your_supabase_project_url' && 
-  supabaseAnonKey !== 'your_supabase_anon_key';
-
-let supabase, supabaseAdmin;
-
-if (hasValidCredentials) {
-  // Client for user operations (with RLS)
-  supabase = createClient(supabaseUrl, supabaseAnonKey);
-  
-  // Admin client for server-side operations (bypasses RLS)
-  supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
-} else {
-  console.log('⚠️  Supabase credentials not configured. Running in demo mode.');
-  
-  // Create mock clients for demo mode
-  supabase = {
-    auth: {
-      signInWithPassword: async () => ({ data: null, error: { message: 'Supabase not configured' } }),
-      signOut: async () => ({ error: null }),
-      updateUser: async () => ({ error: { message: 'Supabase not configured' } })
-    },
-    from: () => ({
-      select: () => ({ eq: () => ({ single: async () => ({ data: null, error: { message: 'Supabase not configured' } }) }) }),
-      insert: async () => ({ data: null, error: { message: 'Supabase not configured' } }),
-      update: async () => ({ data: null, error: { message: 'Supabase not configured' } }),
-      delete: async () => ({ error: { message: 'Supabase not configured' } })
-    })
-  };
-  
-  supabaseAdmin = {
-    auth: {
-      admin: {
-        createUser: async () => ({ data: null, error: { message: 'Supabase not configured' } }),
-        deleteUser: async () => ({ error: null })
-      }
-    },
-    from: () => ({
-      insert: async () => ({ error: { message: 'Supabase not configured' } })
-    })
-  };
-}
+// Create Supabase clients
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
 module.exports = { supabase, supabaseAdmin }; 

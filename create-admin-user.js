@@ -6,17 +6,17 @@ const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
 
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-async function createTestUser() {
+async function createUser() {
   try {
-    console.log('🔧 Creating test user...');
+    console.log('🔧 Creating admin user...');
     
-    // Create a new test user
+    // Create user with signup
     const { data, error } = await supabase.auth.signUp({
-      email: 'test@interlock.com',
-      password: 'test123',
+      email: 'admin@interlock.com',
+      password: 'admin123',
       options: {
         data: {
-          name: 'Test User',
+          name: 'Admin User',
           role: 'admin'
         }
       }
@@ -27,23 +27,23 @@ async function createTestUser() {
       return;
     }
 
-    console.log('✅ Test user created successfully!');
-    console.log('📧 Email: test@interlock.com');
-    console.log('🔑 Password: test123');
+    console.log('✅ User created successfully!');
+    console.log('📧 Email: admin@interlock.com');
+    console.log('🔑 Password: admin123');
     console.log('👤 Role: admin');
     console.log('🆔 User ID:', data.user?.id);
     
-    // Create profile
+    // Try to create profile manually
     if (data.user) {
       console.log('🔧 Creating profile...');
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .upsert([
+        .insert([
           {
             id: data.user.id,
-            name: 'Test User',
+            name: 'Admin User',
             role: 'admin',
-            email: 'test@interlock.com'
+            email: 'admin@interlock.com'
           }
         ])
         .select()
@@ -61,4 +61,4 @@ async function createTestUser() {
   }
 }
 
-createTestUser(); 
+createUser(); 

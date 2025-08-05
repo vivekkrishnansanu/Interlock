@@ -36,7 +36,7 @@ const Allowances = () => {
     try {
       setLoading(true);
       
-      // Fetch allowances
+      // Fetch allowances - use created_at for ordering if effective_date doesn't exist
       const { data: allowancesData, error: allowancesError } = await supabase
         .from('allowances')
         .select(`
@@ -47,9 +47,31 @@ const Allowances = () => {
             designation
           )
         `)
-        .order('effective_date', { ascending: false });
+        .order('created_at', { ascending: false });
 
-      if (allowancesError) throw allowancesError;
+      if (allowancesError) {
+        console.error('Allowances fetch error:', allowancesError);
+        // If the error is about missing column, try without ordering
+        if (allowancesError.message && allowancesError.message.includes('effective_date')) {
+          const { data: fallbackData, error: fallbackError } = await supabase
+            .from('allowances')
+            .select(`
+              *,
+              employees (
+                id,
+                name,
+                designation
+              )
+            `);
+          
+          if (fallbackError) throw fallbackError;
+          setAllowances(fallbackData || []);
+        } else {
+          throw allowancesError;
+        }
+      } else {
+        setAllowances(allowancesData || []);
+      }
 
       // Fetch employees
       const { data: employeesData, error: employeesError } = await supabase
@@ -59,7 +81,6 @@ const Allowances = () => {
 
       if (employeesError) throw employeesError;
 
-      setAllowances(allowancesData || []);
       setEmployees(employeesData || []);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -77,13 +98,14 @@ const Allowances = () => {
 
   // Filter allowances
   const filteredAllowances = allowances.filter(allowance => {
+    const allowanceType = allowance.allowance_type || allowance.category || 'General';
     const matchesSearch = 
       allowance.employees?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      allowance.allowance_type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      allowance.description.toLowerCase().includes(searchTerm.toLowerCase());
+      allowanceType.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (allowance.description || '').toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesEmployee = !filterEmployee || allowance.employee_id === filterEmployee;
-    const matchesType = !filterType || allowance.allowance_type === filterType;
+    const matchesType = !filterType || allowanceType === filterType;
     
     return matchesSearch && matchesEmployee && matchesType;
   });
@@ -92,9 +114,8 @@ const Allowances = () => {
     setEditingAllowance(null);
     setFormData({
       employee_id: '',
-      allowance_type: '',
+      allowance_type: 'General',
       amount: '',
-      effective_date: new Date().toISOString().split('T')[0],
       description: ''
     });
     setShowModal(true);
@@ -104,10 +125,9 @@ const Allowances = () => {
     setEditingAllowance(allowance);
     setFormData({
       employee_id: allowance.employee_id,
-      allowance_type: allowance.allowance_type,
+      allowance_type: allowance.allowance_type || 'General',
       amount: allowance.amount.toString(),
-      effective_date: allowance.effective_date,
-      description: allowance.description
+      description: allowance.description || ''
     });
     setShowModal(true);
   };
@@ -134,8 +154,10 @@ const Allowances = () => {
   const handleSaveAllowance = async () => {
     try {
       const allowanceData = {
-        ...formData,
-        amount: parseFloat(formData.amount)
+        employee_id: formData.employee_id,
+        category: formData.allowance_type, // Map allowance_type to category
+        amount: parseFloat(formData.amount),
+        description: formData.description || ''
       };
 
       if (editingAllowance) {
@@ -167,13 +189,13 @@ const Allowances = () => {
 
   const exportAllowances = () => {
     const csvContent = [
-      ['Employee', 'Allowance Type', 'Amount', 'Effective Date', 'Description'],
+      ['Employee', 'Category', 'Amount', 'Description', 'Created Date'],
       ...filteredAllowances.map(allowance => [
         allowance.employees?.name || '',
-        allowance.allowance_type,
+        allowance.category || allowance.allowance_type || 'General',
         allowance.amount,
-        allowance.effective_date,
-        allowance.description
+        allowance.description || '',
+        allowance.created_at ? new Date(allowance.created_at).toLocaleDateString() : ''
       ])
     ].map(row => row.join(',')).join('\n');
 
@@ -189,7 +211,9 @@ const Allowances = () => {
   // Calculate summary statistics
   const totalAllowances = filteredAllowances.length;
   const totalAmount = filteredAllowances.reduce((sum, allowance) => sum + (allowance.amount || 0), 0);
-  const uniqueTypes = [...new Set(filteredAllowances.map(allowance => allowance.allowance_type))];
+  const uniqueTypes = [...new Set(filteredAllowances.map(allowance => 
+    allowance.allowance_type || allowance.category || 'General'
+  ))];
 
   if (loading) {
     return (
@@ -200,14 +224,14 @@ const Allowances = () => {
   }
 
   return (
-    <div className="space-lg">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-md">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Allowances</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-1">Allowances</h1>
           <p className="text-gray-600">Manage employee allowances and benefits</p>
         </div>
-        <div className="flex flex-col sm:flex-row gap-sm">
+        <div className="flex flex-col sm:flex-row gap-3">
           <button
             onClick={exportAllowances}
             className="btn btn-outline"
@@ -226,10 +250,10 @@ const Allowances = () => {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-md">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="card">
           <div className="card-body">
-            <div className="flex items-center gap-sm">
+            <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
                 <DollarSign size={20} className="text-blue-600" />
               </div>
@@ -243,7 +267,7 @@ const Allowances = () => {
         
         <div className="card">
           <div className="card-body">
-            <div className="flex items-center gap-sm">
+            <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
                 <DollarSign size={20} className="text-green-600" />
               </div>
@@ -257,7 +281,7 @@ const Allowances = () => {
         
         <div className="card">
           <div className="card-body">
-            <div className="flex items-center gap-sm">
+            <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
                 <User size={20} className="text-purple-600" />
               </div>
@@ -273,7 +297,7 @@ const Allowances = () => {
       {/* Filters */}
       <div className="card">
         <div className="card-body">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-md">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Search */}
             <div>
               <div className="relative">
@@ -358,13 +382,18 @@ const Allowances = () => {
                         </div>
                       </td>
                       <td>
-                        <span className="badge badge-outline">{allowance.allowance_type}</span>
+                        <span className="badge badge-outline">
+                          {allowance.allowance_type || allowance.category || 'General'}
+                        </span>
                       </td>
                       <td className="font-mono font-medium text-green-600">
                         BHD {allowance.amount?.toFixed(2)}
                       </td>
-                      <td className="font-mono">{allowance.effective_date}</td>
-                      <td>{allowance.description}</td>
+                      <td className="font-mono">
+                        {allowance.effective_date || 
+                         (allowance.created_at ? new Date(allowance.created_at).toLocaleDateString() : '-')}
+                      </td>
+                      <td>{allowance.description || '-'}</td>
                       <td>
                         <div className="flex items-center gap-sm">
                           <button

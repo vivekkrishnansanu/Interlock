@@ -153,11 +153,11 @@ const Timecard = () => {
   }
 
   return (
-    <div className="space-lg">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-md">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">My Timecard</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-1">My Timecard</h1>
           <p className="text-gray-600">Track your work hours and earnings</p>
         </div>
         <button
@@ -170,10 +170,10 @@ const Timecard = () => {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-md">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="card">
           <div className="card-body">
-            <div className="flex items-center gap-sm">
+            <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
                 <Clock size={20} className="text-blue-600" />
               </div>
@@ -187,7 +187,7 @@ const Timecard = () => {
         
         <div className="card">
           <div className="card-body">
-            <div className="flex items-center gap-sm">
+            <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
                 <DollarSign size={20} className="text-green-600" />
               </div>
@@ -201,7 +201,7 @@ const Timecard = () => {
         
         <div className="card">
           <div className="card-body">
-            <div className="flex items-center gap-sm">
+            <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
                 <Calendar size={20} className="text-purple-600" />
               </div>
@@ -217,7 +217,7 @@ const Timecard = () => {
       {/* Filters */}
       <div className="card">
         <div className="card-body">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-md">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Search */}
             <div>
               <div className="relative">

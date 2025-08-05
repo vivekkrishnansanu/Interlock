@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Eye, EyeOff, Lock, User } from 'lucide-react';
+import { Eye, EyeOff, Lock, User, AlertCircle, Loader2 } from 'lucide-react';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -11,10 +11,8 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [isSignup, setIsSignup] = useState(false);
-  const [name, setName] = useState('');
   
-  const { login, signup } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -34,25 +32,41 @@ const Login = () => {
     setLoading(true);
     setError('');
 
-    let result;
-    if (isSignup) {
-      result = await signup(formData.email, formData.password, name);
-    } else {
-      result = await login(formData.email, formData.password);
-    }
-
+    const result = await login(formData.email, formData.password);
     if (result.success) {
-      if (isSignup) {
-        setIsSignup(false);
-        setFormData({ email: '', password: '' });
-        setName('');
-      } else {
-        navigate('/');
-      }
+      navigate('/');
     } else {
-      setError(result.error || 'Authentication failed. Please try again.');
+      setError(result.error || 'Invalid email or password. Please try again.');
     }
     setLoading(false);
+  };
+
+  const demoCredentials = [
+    { role: 'Leadership', email: 'leadership@interlock.com', password: 'leadership123' },
+    { role: 'Admin', email: 'admin@interlock.com', password: 'admin123' },
+    { role: 'Viewer', email: 'viewer@interlock.com', password: 'viewer123' }
+  ];
+
+  const handleDemoLogin = async (role) => {
+    // Set form data for demo login
+    const email = `${role.toLowerCase()}@interlock.com`;
+    const password = `${role.toLowerCase()}123`;
+    
+    setFormData({ email, password });
+    
+    // Wait for state to update, then submit
+    setTimeout(async () => {
+      setLoading(true);
+      setError('');
+      
+      const result = await login(email, password);
+      if (result.success) {
+        navigate('/');
+      } else {
+        setError(result.error || 'Invalid email or password. Please try again.');
+      }
+      setLoading(false);
+    }, 100);
   };
 
   return (
@@ -60,43 +74,23 @@ const Login = () => {
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         {/* Logo */}
         <div className="flex justify-center">
-          <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
-            <span className="text-white font-semibold text-lg">I</span>
+          <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-sm">
+            <span className="text-white font-semibold text-lg tracking-tight">I</span>
           </div>
         </div>
         
-        <h2 className="mt-6 text-center text-3xl font-bold text-gray-900 tracking-tight">
-          {isSignup ? 'Create Account' : 'Sign in to Interlock'}
+        <h2 className="mt-6 text-center text-3xl font-semibold text-gray-900 tracking-tight">
+          Sign in to Interlock
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600">
-          {isSignup ? 'Create your wage tracking account' : 'Access your wage tracking dashboard'}
+          Access your wage tracking dashboard
         </p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="card">
+        <div className="card shadow-lg">
           <div className="card-body">
-            <form onSubmit={handleSubmit} className="space-md">
-              {/* Name Field (only for signup) */}
-              {isSignup && (
-                <div className="form-group">
-                  <label htmlFor="name" className="form-label">
-                    Full Name
-                  </label>
-                  <input
-                    id="name"
-                    name="name"
-                    type="text"
-                    autoComplete="name"
-                    required={isSignup}
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="form-input"
-                    placeholder="Enter your full name"
-                  />
-                </div>
-              )}
-
+            <form onSubmit={handleSubmit} className="space-y-6">
               {/* Email Field */}
               <div className="form-group">
                 <label htmlFor="email" className="form-label">
@@ -114,7 +108,7 @@ const Login = () => {
                     required
                     value={formData.email}
                     onChange={handleChange}
-                    className="form-input pl-10"
+                    className="input pl-10"
                     placeholder="Enter your email"
                   />
                 </div>
@@ -133,16 +127,16 @@ const Login = () => {
                     id="password"
                     name="password"
                     type={showPassword ? 'text' : 'password'}
-                    autoComplete={isSignup ? 'new-password' : 'current-password'}
+                    autoComplete="current-password"
                     required
                     value={formData.password}
                     onChange={handleChange}
-                    className="form-input pl-10 pr-10"
-                    placeholder={isSignup ? 'Create a password' : 'Enter your password'}
+                    className="input pl-10 pr-10"
+                    placeholder="Enter your password"
                   />
                   <button
                     type="button"
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center hover:text-gray-600 transition-colors duration-200"
                     onClick={() => setShowPassword(!showPassword)}
                   >
                     {showPassword ? (
@@ -156,47 +150,70 @@ const Login = () => {
 
               {/* Error Message */}
               {error && (
-                <div className="alert alert-error">
-                  {error}
+                <div className="rounded-lg bg-red-50 border border-red-200 p-4">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <AlertCircle size={16} className="text-red-600" />
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm font-medium text-red-700">{error}</p>
+                    </div>
+                  </div>
                 </div>
               )}
 
               {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={loading}
-                className="btn btn-primary w-full"
-              >
-                {loading ? (
-                  <div className="flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    {isSignup ? 'Creating Account...' : 'Signing In...'}
-                  </div>
-                ) : (
-                  isSignup ? 'Create Account' : 'Sign In'
-                )}
-              </button>
+              <div>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="btn btn-primary w-full h-11 font-medium"
+                >
+                  {loading ? (
+                    <Loader2 size={16} className="animate-spin mr-2" />
+                  ) : null}
+                  {loading ? 'Signing in...' : 'Sign in'}
+                </button>
+              </div>
             </form>
 
-            {/* Toggle between login and signup */}
-            <div className="mt-6 text-center">
-              <p className="text-sm text-gray-600">
-                {isSignup ? 'Already have an account?' : "Don't have an account?"}{' '}
+            {/* Demo Credentials */}
+            <div className="mt-8 pt-6 border-t border-gray-200">
+              <h3 className="text-sm font-semibold text-gray-900 mb-4 tracking-tight">Demo Access</h3>
+              <div className="space-y-3">
                 <button
-                  type="button"
-                  onClick={() => {
-                    setIsSignup(!isSignup);
-                    setError('');
-                    setFormData({ email: '', password: '' });
-                    setName('');
-                  }}
-                  className="text-blue-600 hover:text-blue-500 font-medium"
+                  onClick={() => handleDemoLogin('Leadership')}
+                  className="w-full btn btn-outline hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700 transition-colors duration-200"
                 >
-                  {isSignup ? 'Sign in' : 'Sign up'}
+                  Enter as Leadership
                 </button>
-              </p>
+                <div className="text-center text-xs text-gray-500 mt-2">
+                  Or choose specific role:
+                </div>
+                {demoCredentials.map((cred, index) => (
+                  <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors duration-150">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">{cred.role}</p>
+                      <p className="text-xs text-gray-500">{cred.email}</p>
+                    </div>
+                    <button
+                      onClick={() => handleDemoLogin(cred.role)}
+                      className="btn btn-ghost text-xs hover:bg-gray-200 transition-colors duration-200"
+                    >
+                      Use
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
+        </div>
+
+        {/* Footer */}
+        <div className="mt-6 text-center">
+          <p className="text-xs text-gray-500">
+            This is a demo application. Use the credentials above to sign in.
+          </p>
         </div>
       </div>
     </div>

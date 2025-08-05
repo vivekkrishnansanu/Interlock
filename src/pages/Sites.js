@@ -20,10 +20,9 @@ const Sites = () => {
   const [formData, setFormData] = useState({
     name: '',
     code: '',
-    address: '',
-    contact_person: '',
-    phone: '',
-    email: ''
+    location: '',
+    description: '',
+    status: 'active'
   });
 
   // Fetch sites from Supabase
@@ -54,7 +53,7 @@ const Sites = () => {
   const filteredSites = sites.filter(site => 
     site.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     site.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    site.address.toLowerCase().includes(searchTerm.toLowerCase())
+    (site.location && site.location.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const handleAddSite = () => {
@@ -62,10 +61,9 @@ const Sites = () => {
     setFormData({
       name: '',
       code: '',
-      address: '',
-      contact_person: '',
-      phone: '',
-      email: ''
+      location: '',
+      description: '',
+      status: 'active'
     });
     setShowModal(true);
   };
@@ -75,10 +73,9 @@ const Sites = () => {
     setFormData({
       name: site.name,
       code: site.code,
-      address: site.address,
-      contact_person: site.contact_person,
-      phone: site.phone,
-      email: site.email
+      location: site.location || '',
+      description: site.description || '',
+      status: site.status || 'active'
     });
     setShowModal(true);
   };
@@ -102,33 +99,10 @@ const Sites = () => {
     }
   };
 
-  const handleSaveSite = async () => {
-    try {
-      if (editingSite) {
-        // Update existing site
-        const { error } = await supabase
-          .from('sites')
-          .update(formData)
-          .eq('id', editingSite.id);
-
-        if (error) throw error;
-        toast.success('Site updated successfully');
-      } else {
-        // Create new site
-        const { error } = await supabase
-          .from('sites')
-          .insert([formData]);
-
-        if (error) throw error;
-        toast.success('Site created successfully');
-      }
-      
-      setShowModal(false);
-      fetchSites();
-    } catch (error) {
-      console.error('Error saving site:', error);
-      toast.error('Failed to save site');
-    }
+  const handleSaveSite = async (savedSite) => {
+    setShowModal(false);
+    setEditingSite(null);
+    await fetchSites(); // Refresh the list
   };
 
   const exportSites = () => {

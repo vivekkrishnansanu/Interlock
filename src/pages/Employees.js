@@ -13,7 +13,8 @@ import {
   XCircle,
   Edit, 
   Trash2, 
-  MapPin
+  MapPin,
+  Loader2
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import EmployeeModal from '../components/EmployeeModal';
@@ -29,8 +30,6 @@ const Employees = () => {
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
-  const [filterWorkType, setFilterWorkType] = useState('');
-  const [filterEmploymentType, setFilterEmploymentType] = useState('');
   const [sortBy, setSortBy] = useState('name');
   const [sortOrder, setSortOrder] = useState('asc');
 
@@ -83,10 +82,8 @@ const Employees = () => {
     fetchSites();
   }, []);
 
-  // Extract unique categories and work types from real data
-  const uniqueCategories = [...new Set(employees.map(emp => emp.category))];
-  const uniqueWorkTypes = [...new Set(employees.map(emp => emp.work_type))];
-  const uniqueEmploymentTypes = [...new Set(employees.map(emp => emp.employment_type))];
+  // Extract unique categories from real data
+  const uniqueCategories = [...new Set(employees.map(emp => emp.category).filter(Boolean))];
 
   // Filter employees
   const filteredEmployees = employees.filter(employee => {
@@ -94,31 +91,29 @@ const Employees = () => {
                          employee.cpr.includes(searchTerm) ||
                          employee.designation.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = !filterCategory || employee.category === filterCategory;
-    const matchesWorkType = !filterWorkType || employee.work_type === filterWorkType;
-    const matchesEmploymentType = !filterEmploymentType || employee.employment_type === filterEmploymentType;
     
-    return matchesSearch && matchesCategory && matchesWorkType && matchesEmploymentType;
+    return matchesSearch && matchesCategory;
   });
+
+  // Handle sorting
+  const handleSort = (field) => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortOrder('asc');
+    }
+  };
 
   // Sort employees
   const sortedEmployees = [...filteredEmployees].sort((a, b) => {
-    let aValue = a[sortBy];
-    let bValue = b[sortBy];
-    
-    if (sortBy === 'site') {
-      aValue = a.sites?.name || '';
-      bValue = b.sites?.name || '';
-    }
-    
-    if (typeof aValue === 'string') {
-      aValue = aValue.toLowerCase();
-      bValue = bValue.toLowerCase();
-    }
+    const aValue = a[sortBy] || '';
+    const bValue = b[sortBy] || '';
     
     if (sortOrder === 'asc') {
-      return aValue > bValue ? 1 : -1;
+      return aValue.toString().localeCompare(bValue.toString());
     } else {
-      return aValue < bValue ? 1 : -1;
+      return bValue.toString().localeCompare(aValue.toString());
     }
   });
 
@@ -156,9 +151,18 @@ const Employees = () => {
     setEditingEmployee(null);
   };
 
-  const handleEmployeeSaved = () => {
-    fetchEmployees();
-    handleModalClose();
+  // Handle employee save
+  const handleEmployeeSaved = async (savedEmployee) => {
+    setShowModal(false);
+    setEditingEmployee(null);
+    await fetchEmployees(); // Refresh the list
+  };
+
+  // Handle employee save (updated to work with new modal)
+  const handleEmployeeSave = async (employeeData) => {
+    setShowModal(false);
+    setEditingEmployee(null);
+    await fetchEmployees(); // Refresh the list
   };
 
   const exportEmployees = () => {
@@ -190,41 +194,44 @@ const Employees = () => {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="flex flex-col items-center space-y-4">
+          <Loader2 size={24} className="animate-spin text-blue-600" />
+          <p className="text-sm text-gray-500">Loading employees...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-lg">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-md">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Employees</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-gray-900 tracking-tight mb-1">Employees</h1>
           <p className="text-gray-600">Manage your workforce and their details</p>
-            </div>
-        <div className="flex flex-col sm:flex-row gap-sm">
+        </div>
+        <div className="flex flex-col sm:flex-row gap-3">
           <button
             onClick={exportEmployees}
-            className="btn btn-outline"
+            className="btn btn-outline hover:bg-gray-50 hover:border-gray-300 transition-colors duration-200"
           >
-            <Download size={16} />
+            <Download size={16} className="mr-2" />
             Export
           </button>
-              <button
-                onClick={handleAddEmployee}
+          <button
+            onClick={handleAddEmployee}
             className="btn btn-primary"
-              >
-            <Plus size={16} />
+          >
+            <Plus size={16} className="mr-2" />
             Add Employee
-              </button>
+          </button>
         </div>
       </div>
 
       {/* Filters */}
       <div className="card">
         <div className="card-body">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-md">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {/* Search */}
             <div className="lg:col-span-2">
               <div className="relative">
@@ -252,34 +259,6 @@ const Employees = () => {
                 ))}
               </select>
             </div>
-
-            {/* Work Type Filter */}
-            <div>
-              <select
-                value={filterWorkType}
-                onChange={(e) => setFilterWorkType(e.target.value)}
-                className="form-select"
-              >
-                <option value="">All Work Types</option>
-                {uniqueWorkTypes.map(type => (
-                  <option key={type} value={type}>{type}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Employment Type Filter */}
-            <div>
-              <select
-                value={filterEmploymentType}
-                onChange={(e) => setFilterEmploymentType(e.target.value)}
-                className="form-select"
-              >
-                <option value="">All Employment Types</option>
-                {uniqueEmploymentTypes.map(type => (
-                  <option key={type} value={type}>{type}</option>
-                ))}
-              </select>
-            </div>
           </div>
         </div>
       </div>
@@ -287,128 +266,110 @@ const Employees = () => {
       {/* Employees Table */}
       <div className="card">
         <div className="card-body">
-        <div className="table-container">
-          <table className="table">
-            <thead>
-              <tr>
+          <div className="table-container">
+            <table className="table">
+              <thead>
+                <tr>
                   <th>
                     <button
-                      onClick={() => {
-                        setSortBy('name');
-                        setSortOrder(sortBy === 'name' && sortOrder === 'asc' ? 'desc' : 'asc');
-                      }}
-                      className="flex items-center gap-sm hover:text-blue-600"
+                      onClick={() => handleSort('name')}
+                      className="flex items-center gap-2 hover:text-gray-700 transition-colors duration-200"
                     >
                       Name
                       {sortBy === 'name' && (
-                        <span className="text-blue-600">
+                        <span className="text-xs font-medium">
                           {sortOrder === 'asc' ? '↑' : '↓'}
                         </span>
                       )}
                     </button>
                   </th>
-                <th>CPR</th>
+                  <th>CPR</th>
                   <th>Designation</th>
-                  <th>
-                    <button
-                      onClick={() => {
-                        setSortBy('site');
-                        setSortOrder(sortBy === 'site' && sortOrder === 'asc' ? 'desc' : 'asc');
-                      }}
-                      className="flex items-center gap-sm hover:text-blue-600"
-                    >
-                      Site
-                      {sortBy === 'site' && (
-                        <span className="text-blue-600">
-                          {sortOrder === 'asc' ? '↑' : '↓'}
-                        </span>
-                      )}
-                    </button>
-                  </th>
-                <th>Category</th>
-                <th>Employment Type</th>
-                <th>Work Type</th>
+                  <th>Site</th>
+                  <th>Category</th>
                   <th>NT Rate</th>
                   <th>ROT Rate</th>
                   <th>HOT Rate</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
                 {sortedEmployees.length === 0 ? (
                   <tr>
-                    <td colSpan="11" className="text-center py-8 text-gray-500">
-                      {searchTerm || filterCategory || filterWorkType || filterEmploymentType
-                        ? 'No employees match your filters'
-                        : 'No employees found. Add your first employee to get started.'}
-                  </td>
-                </tr>
-              ) : (
+                    <td colSpan="9" className="text-center py-12">
+                      <div className="flex flex-col items-center space-y-3">
+                        <User size={48} className="text-gray-300" />
+                        <p className="text-gray-500">
+                          {searchTerm || filterCategory
+                            ? 'No employees match your filters'
+                            : 'No employees found. Add your first employee to get started.'}
+                        </p>
+                        {!searchTerm && !filterCategory && (
+                          <button
+                            onClick={handleAddEmployee}
+                            className="btn btn-primary"
+                          >
+                            <Plus size={16} className="mr-2" />
+                            Add First Employee
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
                   sortedEmployees.map((employee) => (
-                    <tr key={employee.id}>
+                    <tr key={employee.id} className="hover:bg-gray-50 transition-colors duration-150">
                       <td>
-                        <div className="flex items-center gap-sm">
-                          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                            <User size={16} className="text-blue-600" />
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center shadow-sm">
+                            <User size={16} className="text-white" />
                           </div>
                           <div>
                             <div className="font-medium text-gray-900">{employee.name}</div>
                           </div>
                         </div>
                       </td>
-                      <td className="font-mono">{employee.cpr}</td>
-                      <td>{employee.designation}</td>
+                      <td className="font-mono text-sm">{employee.cpr}</td>
+                      <td className="text-sm">{employee.designation}</td>
                       <td>
                         {employee.sites ? (
-                          <div className="flex items-center gap-sm">
+                          <div className="flex items-center gap-2">
                             <MapPin size={14} className="text-gray-400" />
-                            <span>{employee.sites.name}</span>
+                            <span className="text-sm">{employee.sites.name}</span>
                           </div>
                         ) : (
-                          <span className="text-gray-400">-</span>
+                          <span className="text-gray-400 text-sm">-</span>
                         )}
                       </td>
                       <td>
-                        <span className="badge badge-outline">{employee.category}</span>
+                        <span className="badge badge-outline text-xs">{employee.category}</span>
                       </td>
+                      <td className="font-mono text-sm">${employee.nt_rate}</td>
+                      <td className="font-mono text-sm">${employee.rot_rate}</td>
+                      <td className="font-mono text-sm">${employee.hot_rate}</td>
                       <td>
-                        <span className={`badge ${
-                          employee.employment_type === 'permanent' 
-                            ? 'badge-success' 
-                            : 'badge-warning'
-                        }`}>
-                          {employee.employment_type}
-                        </span>
-                      </td>
-                      <td>
-                        <span className="badge badge-outline">{employee.work_type}</span>
-                      </td>
-                      <td className="font-mono">{employee.nt_rate}</td>
-                      <td className="font-mono">{employee.rot_rate}</td>
-                      <td className="font-mono">{employee.hot_rate}</td>
-                      <td>
-                        <div className="flex items-center gap-sm">
+                        <div className="flex items-center gap-2">
                           <button
                             onClick={() => handleEditEmployee(employee)}
-                            className="btn btn-ghost btn-sm"
+                            className="btn btn-ghost btn-sm hover:bg-blue-50 hover:text-blue-600 transition-colors duration-200"
                             title="Edit"
                           >
                             <Edit size={14} />
                           </button>
-                            <button
+                          <button
                             onClick={() => handleDeleteEmployee(employee.id)}
-                            className="btn btn-ghost btn-sm text-red-600 hover:text-red-700"
-                              title="Delete"
-                            >
+                            className="btn btn-ghost btn-sm text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors duration-200"
+                            title="Delete"
+                          >
                             <Trash2 size={14} />
-                            </button>
+                          </button>
                         </div>
                       </td>
                     </tr>
                   ))
-              )}
-            </tbody>
-          </table>
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -419,7 +380,7 @@ const Employees = () => {
           employee={editingEmployee}
           sites={sites}
           onClose={handleModalClose}
-          onSave={handleEmployeeSaved}
+          onSave={handleEmployeeSave}
         />
       )}
     </div>
