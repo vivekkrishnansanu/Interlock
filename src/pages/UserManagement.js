@@ -12,7 +12,7 @@ import {
   Lock
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { apiService } from '../services/apiService';
+import apiService from '../services/apiService';
 import toast from 'react-hot-toast';
 
 const UserManagement = () => {
