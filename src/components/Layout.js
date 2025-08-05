@@ -18,7 +18,8 @@ import {
   LogOut,
   X,
   Menu,
-  Settings
+  Settings,
+  Shield
 } from 'lucide-react';
 
 const Layout = () => {
@@ -38,6 +39,7 @@ const Layout = () => {
     { name: 'My Timecard', href: '/timecard', icon: Clock, role: 'viewer' },
     { name: 'Salary Advances', href: '/salary-advances', icon: CreditCard, role: 'viewer' },
     { name: 'Allowances', href: '/allowances', icon: Gift, role: 'admin' },
+    { name: 'User Management', href: '/users', icon: Shield, role: 'admin' },
   ];
 
   const filteredNavigation = navigation.filter(item => {
@@ -46,7 +48,7 @@ const Layout = () => {
       return false;
     }
     
-    const roleHierarchy = { viewer: 1, admin: 2, leadership: 3 };
+    const roleHierarchy = { viewer: 1, editor: 2, admin: 3, leadership: 4 };
     const userRoleLevel = roleHierarchy[userProfile?.role] || 1;
     const requiredRoleLevel = roleHierarchy[item.role] || 1;
     return userRoleLevel >= requiredRoleLevel;
