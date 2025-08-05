@@ -1,6 +1,8 @@
 // Secure API Service - Replaces direct Supabase calls
 // This prevents sensitive data exposure in the frontend
 
+import { supabase } from '../lib/supabase';
+
 const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
 
 class ApiService {
@@ -8,15 +10,20 @@ class ApiService {
     this.baseURL = API_BASE_URL;
   }
 
-  // Get auth token from localStorage
-  getAuthToken() {
-    const session = JSON.parse(localStorage.getItem('supabase.auth.token') || '{}');
-    return session.currentSession?.access_token;
+  // Get auth token from Supabase client
+  async getAuthToken() {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      return session?.access_token;
+    } catch (error) {
+      console.error('Error getting auth token:', error);
+      return null;
+    }
   }
 
   // Set auth headers
-  getHeaders() {
-    const token = this.getAuthToken();
+  async getHeaders() {
+    const token = await this.getAuthToken();
     return {
       'Content-Type': 'application/json',
       ...(token && { 'Authorization': `Bearer ${token}` })
@@ -27,8 +34,9 @@ class ApiService {
   async request(endpoint, options = {}) {
     try {
       const url = `${this.baseURL}${endpoint}`;
+      const headers = await this.getHeaders();
       const config = {
-        headers: this.getHeaders(),
+        headers,
         ...options
       };
 
