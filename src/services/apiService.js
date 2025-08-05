@@ -1,7 +1,7 @@
 // Secure API Service - Replaces direct Supabase calls
 // This prevents sensitive data exposure in the frontend
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
 
 class ApiService {
   constructor() {
