@@ -12,10 +12,11 @@ import {
   Lock
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { apiService } from '../services/apiService';
 import toast from 'react-hot-toast';
 
 const UserManagement = () => {
-  const { userProfile, user } = useAuth();
+  const { userProfile } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -31,24 +32,10 @@ const UserManagement = () => {
   // Check if user has permission to manage users
   const canManageUsers = userProfile?.role === 'admin' || userProfile?.role === 'editor';
 
-  // API base URL
-  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/api/users`, {
-        headers: {
-          'Authorization': `Bearer ${user?.access_token || ''}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch users');
-      }
-
-      const data = await response.json();
+      const data = await apiService.getUsers();
       setUsers(data || []);
     } catch (error) {
       console.error('Error fetching users:', error);
@@ -85,24 +72,12 @@ const UserManagement = () => {
     if (!confirm('Are you sure you want to delete this user?')) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${user?.access_token || ''}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to delete user');
-      }
-      
+      await apiService.deleteUser(userId);
       toast.success('User deleted successfully');
       fetchUsers();
     } catch (error) {
       console.error('Error deleting user:', error);
-      toast.error(error.message || 'Failed to delete user');
+      toast.error('Failed to delete user');
     }
   };
 
@@ -117,46 +92,20 @@ const UserManagement = () => {
     try {
       if (editingUser) {
         // Update existing user
-        const response = await fetch(`${API_BASE_URL}/api/users/${editingUser.id}`, {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${user?.access_token || ''}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            name: formData.name,
-            email: formData.email,
-            role: formData.role
-          })
+        await apiService.updateUser(editingUser.id, {
+          name: formData.name,
+          email: formData.email,
+          role: formData.role
         });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to update user');
-        }
-
         toast.success('User updated successfully');
       } else {
         // Create new user
-        const response = await fetch(`${API_BASE_URL}/api/users`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${user?.access_token || ''}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            name: formData.name,
-            email: formData.email,
-            role: formData.role,
-            password: formData.password
-          })
+        await apiService.createUser({
+          name: formData.name,
+          email: formData.email,
+          role: formData.role,
+          password: formData.password
         });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to create user');
-        }
-
         toast.success('User created successfully');
       }
 

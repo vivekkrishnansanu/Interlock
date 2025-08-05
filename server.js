@@ -8,7 +8,11 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  origin: [
+    process.env.CORS_ORIGIN || 'http://localhost:3000',
+    'https://interlock-bahrain.vercel.app',
+    'https://interlock.vercel.app'
+  ],
   credentials: true
 }));
 app.use(express.json());
@@ -733,7 +737,17 @@ app.post('/api/users', authenticateUser, requireRole(['admin', 'editor']), async
     const { name, email, role, password } = req.body;
 
     if (!name || !email || !role || !password) {
-      return res.status(400).json({ error: 'All fields are required' });
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    // Validate role
+    if (!['viewer', 'editor', 'admin'].includes(role)) {
+      return res.status(400).json({ error: 'Invalid role' });
+    }
+
+    // Prevent creating admin users unless current user is admin
+    if (role === 'admin' && req.userProfile.role !== 'admin') {
+      return res.status(403).json({ error: 'Only admins can create admin users' });
     }
 
     // Create user in Supabase Auth
@@ -742,7 +756,7 @@ app.post('/api/users', authenticateUser, requireRole(['admin', 'editor']), async
       password,
       email_confirm: true,
       user_metadata: {
-        name: name
+        name
       }
     });
 
@@ -750,18 +764,18 @@ app.post('/api/users', authenticateUser, requireRole(['admin', 'editor']), async
       return res.status(400).json({ error: authError.message });
     }
 
-    // Create profile in profiles table
+    // Create profile
     const { error: profileError } = await supabase
       .from('profiles')
       .insert({
         id: authData.user.id,
-        name: name,
-        email: email,
-        role: role
+        name,
+        email,
+        role
       });
 
     if (profileError) {
-      // If profile creation fails, delete the auth user
+      // Clean up auth user if profile creation fails
       await supabase.auth.admin.deleteUser(authData.user.id);
       throw profileError;
     }
@@ -770,14 +784,14 @@ app.post('/api/users', authenticateUser, requireRole(['admin', 'editor']), async
       message: 'User created successfully',
       user: {
         id: authData.user.id,
-        name: name,
-        email: email,
-        role: role
+        name,
+        email,
+        role
       }
     });
   } catch (error) {
     console.error('Error creating user:', error);
-    res.status(500).json({ error: error.message || 'Failed to create user' });
+    res.status(500).json({ error: 'Failed to create user' });
   }
 });
 
@@ -788,16 +802,30 @@ app.put('/api/users/:id', authenticateUser, requireRole(['admin', 'editor']), as
     const { name, email, role } = req.body;
 
     if (!name || !email || !role) {
-      return res.status(400).json({ error: 'All fields are required' });
+      return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    // Update profile
+    // Validate role
+    if (!['viewer', 'editor', 'admin'].includes(role)) {
+      return res.status(400).json({ error: 'Invalid role' });
+    }
+
+    // Prevent self-modification of role
+    if (id === req.user.id) {
+      return res.status(403).json({ error: 'Cannot modify your own account' });
+    }
+
+    // Prevent promoting to admin unless current user is admin
+    if (role === 'admin' && req.userProfile.role !== 'admin') {
+      return res.status(403).json({ error: 'Only admins can promote users to admin' });
+    }
+
     const { error } = await supabase
       .from('profiles')
       .update({
-        name: name,
-        email: email,
-        role: role,
+        name,
+        email,
+        role,
         updated_at: new Date().toISOString()
       })
       .eq('id', id);
@@ -818,10 +846,10 @@ app.delete('/api/users/:id', authenticateUser, requireRole(['admin', 'editor']),
 
     // Prevent self-deletion
     if (id === req.user.id) {
-      return res.status(400).json({ error: 'Cannot delete your own account' });
+      return res.status(403).json({ error: 'Cannot delete your own account' });
     }
 
-    // Delete from profiles table first
+    // Delete from profiles first
     const { error: profileError } = await supabase
       .from('profiles')
       .delete()
@@ -829,11 +857,11 @@ app.delete('/api/users/:id', authenticateUser, requireRole(['admin', 'editor']),
 
     if (profileError) throw profileError;
 
-    // Delete from auth users
+    // Delete from auth
     const { error: authError } = await supabase.auth.admin.deleteUser(id);
     
     if (authError) {
-      console.error('Error deleting auth user:', authError);
+      console.warn('Failed to delete auth user:', authError);
       // Continue anyway as the profile is deleted
     }
 
