@@ -32,36 +32,59 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey || 'dummy-key');
 // Authentication middleware
 const authenticateUser = async (req, res, next) => {
   try {
+    console.log('🔐 Authentication attempt...');
     const authHeader = req.headers.authorization;
+    console.log('🔐 Auth header:', authHeader ? 'Present' : 'Missing');
+    
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.log('🔐 Invalid auth header format');
       return res.status(401).json({ error: 'No valid authorization token provided' });
     }
 
     const token = authHeader.substring(7);
+    console.log('🔐 Token length:', token.length);
+    console.log('🔐 Token preview:', token.substring(0, 20) + '...');
     
     // Verify the JWT token with Supabase
+    console.log('🔐 Verifying token with Supabase...');
     const { data: { user }, error } = await supabase.auth.getUser(token);
     
-    if (error || !user) {
+    if (error) {
+      console.error('🔐 Token verification error:', error);
+      return res.status(401).json({ error: 'Invalid or expired token' });
+    }
+    
+    if (!user) {
+      console.log('🔐 No user found in token');
       return res.status(401).json({ error: 'Invalid or expired token' });
     }
 
+    console.log('🔐 User verified:', user.id);
+    
     // Get user profile with role
+    console.log('🔐 Fetching user profile...');
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', user.id)
       .single();
 
-    if (profileError || !profile) {
+    if (profileError) {
+      console.error('🔐 Profile fetch error:', profileError);
+      return res.status(401).json({ error: 'User profile not found' });
+    }
+    
+    if (!profile) {
+      console.log('🔐 No profile found for user');
       return res.status(401).json({ error: 'User profile not found' });
     }
 
+    console.log('🔐 Authentication successful for:', profile.name, 'Role:', profile.role);
     req.user = user;
     req.userProfile = profile;
     next();
   } catch (error) {
-    console.error('Authentication error:', error);
+    console.error('🔐 Authentication error:', error);
     res.status(500).json({ error: 'Authentication failed' });
   }
 };
@@ -90,6 +113,25 @@ app.get('/api/health', (req, res) => {
     status: 'ok', 
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development'
+  });
+});
+
+// Test endpoint to check if server is working
+app.get('/api/test', (req, res) => {
+  res.json({ 
+    message: 'Server is working!',
+    timestamp: new Date().toISOString(),
+    headers: req.headers
+  });
+});
+
+// Test authenticated endpoint
+app.get('/api/test-auth', authenticateUser, (req, res) => {
+  res.json({ 
+    message: 'Authentication successful!',
+    user: req.user,
+    profile: req.userProfile,
+    timestamp: new Date().toISOString()
   });
 });
 
