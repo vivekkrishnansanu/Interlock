@@ -23,6 +23,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useMonth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import EmployeeModal from '../components/EmployeeModal';
+import { supabase } from '../lib/supabase';
 
 const DailyLogs = () => {
   const { user } = useAuth();
@@ -89,338 +90,46 @@ const DailyLogs = () => {
 
   const fetchEmployees = async () => {
     try {
-      const sampleEmployees = [
-        // Workshop Employees (Fixed Salary)
-        {
-          id: 'emp-1',
-          name: 'DEEPAK KUMAR',
-          cpr: '123456789',
-          category: 'Workshop',
-          doj: '2024-01-15',
-          previousRate: 120.0,
-          currentRate: 130.0,
-          employmentType: 'permanent',
-          workType: 'workshop',
-          salaryType: 'fixed'
-        },
-        {
-          id: 'emp-2',
-          name: 'ARUNKUMAR PC',
-          cpr: '987654321',
-          category: 'Workshop',
-          doj: '2024-02-01',
-          previousRate: 200.0,
-          currentRate: 210.0,
-          employmentType: 'permanent',
-          workType: 'workshop',
-          salaryType: 'fixed'
-        },
-        {
-          id: 'emp-3',
-          name: 'AMAL KOORARA',
-          cpr: '456789123',
-          category: 'Workshop',
-          doj: '2024-01-20',
-          previousRate: 120.0,
-          currentRate: 130.0,
-          employmentType: 'permanent',
-          workType: 'workshop',
-          salaryType: 'fixed'
-        },
-        {
-          id: 'emp-4',
-          name: 'SHIFIN RAPHEL',
-          cpr: '789123456',
-          category: 'Workshop',
-          doj: '2024-02-15',
-          previousRate: 120.0,
-          currentRate: 130.0,
-          employmentType: 'permanent',
-          workType: 'workshop',
-          salaryType: 'fixed'
-        },
-        {
-          id: 'emp-5',
-          name: 'ARUN MON',
-          cpr: '321654987',
-          category: 'Workshop',
-          doj: '2024-01-10',
-          previousRate: 180.0,
-          currentRate: 190.0,
-          employmentType: 'permanent',
-          workType: 'workshop',
-          salaryType: 'fixed'
-        },
-        {
-          id: 'emp-6',
-          name: 'AJITH KUMAR',
-          cpr: '654987321',
-          category: 'Workshop',
-          doj: '2024-02-20',
-          previousRate: 130.0,
-          currentRate: 130.0,
-          employmentType: 'permanent',
-          workType: 'workshop',
-          salaryType: 'fixed'
-        },
-        {
-          id: 'emp-7',
-          name: 'VISHNU',
-          cpr: '147258369',
-          category: 'Workshop',
-          doj: '2024-01-25',
-          previousRate: 120.0,
-          currentRate: 120.0,
-          employmentType: 'permanent',
-          workType: 'workshop',
-          salaryType: 'fixed'
-        },
-        {
-          id: 'emp-8',
-          name: 'RAVI KAMMARI',
-          cpr: '258369147',
-          category: 'Workshop',
-          doj: '2024-02-10',
-          previousRate: 140.0,
-          currentRate: 140.0,
-          employmentType: 'permanent',
-          workType: 'workshop',
-          salaryType: 'fixed'
-        },
-        {
-          id: 'emp-9',
-          name: 'YADHUKRISHNAN',
-          cpr: '369147258',
-          category: 'Workshop',
-          doj: '2024-01-30',
-          previousRate: 125.0,
-          currentRate: 135.0,
-          employmentType: 'permanent',
-          workType: 'workshop',
-          salaryType: 'fixed'
-        },
-        // Site Employees (Fixed Salary)
-        {
-          id: 'emp-10',
-          name: 'PRADEEP KUMAR',
-          cpr: '951753852',
-          category: 'Site',
-          doj: '2024-01-05',
-          previousRate: 180.0,
-          currentRate: 190.0,
-          employmentType: 'permanent',
-          workType: 'site',
-          salaryType: 'fixed'
-        },
-        {
-          id: 'emp-11',
-          name: 'JOHN SIMON',
-          cpr: '753951852',
-          category: 'Site',
-          doj: '2024-02-05',
-          previousRate: 110.0,
-          currentRate: 115.0,
-          employmentType: 'permanent',
-          workType: 'site',
-          salaryType: 'fixed'
-        },
-        {
-          id: 'emp-12',
-          name: 'RAJESH',
-          cpr: '852753951',
-          category: 'Site',
-          doj: '2024-01-12',
-          previousRate: 130.0,
-          currentRate: 130.0,
-          employmentType: 'permanent',
-          workType: 'site',
-          salaryType: 'fixed'
-        },
-        {
-          id: 'emp-13',
-          name: 'SREENATH KANKKARA',
-          cpr: '753852951',
-          category: 'Site',
-          doj: '2024-02-12',
-          previousRate: 120.0,
-          currentRate: 120.0,
-          employmentType: 'permanent',
-          workType: 'site',
-          salaryType: 'fixed'
-        },
-        // Site Employees (Hourly)
-        {
-          id: 'emp-14',
-          name: 'MD MATALIB MIAH',
-          cpr: '159357456',
-          category: 'Site',
-          doj: '2024-01-08',
-          previousRate: 0.750,
-          currentRate: 0.800,
-          employmentType: 'permanent',
-          workType: 'site',
-          salaryType: 'hourly'
-        },
-        {
-          id: 'emp-15',
-          name: 'KABIR HOSSAIN',
-          cpr: '357159456',
-          category: 'Site',
-          doj: '2024-02-08',
-          previousRate: 1.200,
-          currentRate: 1.300,
-          employmentType: 'permanent',
-          workType: 'site',
-          salaryType: 'hourly'
-        },
-        {
-          id: 'emp-16',
-          name: 'ABDUL RAHIM',
-          cpr: '456159357',
-          category: 'Site',
-          doj: '2024-01-18',
-          previousRate: 0.800,
-          currentRate: 0.800,
-          employmentType: 'permanent',
-          workType: 'site',
-          salaryType: 'hourly'
-        },
-        {
-          id: 'emp-17',
-          name: 'ALAM ABUL KASHEM',
-          cpr: '159456357',
-          category: 'Site',
-          doj: '2024-02-18',
-          previousRate: 0.688,
-          currentRate: 0.750,
-          employmentType: 'permanent',
-          workType: 'site',
-          salaryType: 'hourly'
-        },
-        {
-          id: 'emp-18',
-          name: 'ANOWAR HOSSAIN',
-          cpr: '357456159',
-          category: 'Site',
-          doj: '2024-01-22',
-          previousRate: 0.750,
-          currentRate: 0.800,
-          employmentType: 'permanent',
-          workType: 'site',
-          salaryType: 'hourly'
-        },
-        {
-          id: 'emp-19',
-          name: 'ABDUL MIAH ISAMAIL',
-          cpr: '456357159',
-          category: 'Site',
-          doj: '2024-02-22',
-          previousRate: 0.750,
-          currentRate: 0.800,
-          employmentType: 'permanent',
-          workType: 'site',
-          salaryType: 'hourly'
-        },
-        // Flexi Visa Employees (Always Hourly)
-        {
-          id: 'emp-20',
-          name: 'FLEXI EMPLOYEE 1',
-          cpr: '111222333',
-          category: 'Flexi Visa',
-          doj: '2024-03-01',
-          previousRate: 1.000,
-          currentRate: 1.100,
-          employmentType: 'flexi',
-          workType: 'site',
-          salaryType: 'hourly'
-        },
-        {
-          id: 'emp-21',
-          name: 'FLEXI EMPLOYEE 2',
-          cpr: '222333444',
-          category: 'Flexi Visa',
-          doj: '2024-03-05',
-          previousRate: 0.900,
-          currentRate: 1.000,
-          employmentType: 'flexi',
-          workType: 'site',
-          salaryType: 'hourly'
-        },
-        {
-          id: 'emp-22',
-          name: 'FLEXI EMPLOYEE 3',
-          cpr: '333444555',
-          category: 'Flexi Visa',
-          doj: '2024-03-10',
-          previousRate: 1.100,
-          currentRate: 1.200,
-          employmentType: 'flexi',
-          workType: 'site',
-          salaryType: 'hourly'
-        },
-        {
-          id: 'emp-23',
-          name: 'FLEXI EMPLOYEE 4',
-          cpr: '444555666',
-          category: 'Flexi Visa',
-          doj: '2024-03-15',
-          previousRate: 0.850,
-          currentRate: 0.950,
-          employmentType: 'flexi',
-          workType: 'site',
-          salaryType: 'hourly'
-        },
-        {
-          id: 'emp-24',
-          name: 'FLEXI EMPLOYEE 5',
-          cpr: '555666777',
-          category: 'Flexi Visa',
-          doj: '2024-03-20',
-          previousRate: 1.050,
-          currentRate: 1.150,
-          employmentType: 'flexi',
-          workType: 'site',
-          salaryType: 'hourly'
-        }
-      ];
-      setEmployees(sampleEmployees);
+      const { data, error } = await supabase
+        .from('employees')
+        .select('*')
+        .order('name', { ascending: true });
+
+      if (error) throw error;
+      setEmployees(data || []);
     } catch (error) {
       console.error('Error fetching employees:', error);
       toast.error('Failed to fetch employees');
+      setEmployees([]);
     }
   };
 
   const fetchDailyLogs = async () => {
     try {
       setLoading(true);
-      // Sample daily logs for current month
-      const sampleLogs = [
-        {
-          id: 1,
-          date: '2025-03-01',
-          employeeName: 'DEEPAK KUMAR',
-          ntHours: 8,
-          notHours: 2,
-          hotHours: 0,
-          adjustmentHours: 0,
-          siteRef: 'WS#91',
-          isHoliday: false,
-          isFriday: false,
-          totalPay: 1040
-        }
-      ];
-      
-      // Filter by selected month
-      const filteredLogs = sampleLogs.filter(log => {
-        const logMonth = new Date(log.date).getMonth() + 1; // getMonth() returns 0-11, we need 1-12
-        const logYear = new Date(log.date).getFullYear();
-        return logMonth === selectedMonth.month && logYear === selectedMonth.year;
-      });
-      
-      setDailyLogs(filteredLogs);
+      const { data, error } = await supabase
+        .from('daily_logs')
+        .select(`
+          *,
+          employees (
+            id,
+            name,
+            designation
+          ),
+          sites (
+            id,
+            name,
+            code
+          )
+        `)
+        .order('date', { ascending: false });
+
+      if (error) throw error;
+      setDailyLogs(data || []);
     } catch (error) {
       console.error('Error fetching daily logs:', error);
       toast.error('Failed to fetch daily logs');
+      setDailyLogs([]);
     } finally {
       setLoading(false);
     }
@@ -428,19 +137,17 @@ const DailyLogs = () => {
 
   const fetchSites = async () => {
     try {
-      const sampleSites = [
-        { id: 'site-1', name: 'Workshop #91', code: 'WS#91' },
-        { id: 'site-2', name: 'Site A', code: 'SITE-A' },
-        { id: 'site-3', name: 'Site B', code: 'SITE-B' },
-        { id: 'site-4', name: 'Workshop #86', code: 'WS#86' },
-        { id: 'site-5', name: 'ILS#175', code: 'ILS#175' },
-        { id: 'site-6', name: 'Site C', code: 'SITE-C' },
-        { id: 'site-7', name: 'Workshop #92', code: 'WS#92' },
-        { id: 'site-8', name: 'Site D', code: 'SITE-D' }
-      ];
-      setSites(sampleSites);
+      const { data, error } = await supabase
+        .from('sites')
+        .select('*')
+        .order('name', { ascending: true });
+
+      if (error) throw error;
+      setSites(data || []);
     } catch (error) {
       console.error('Error fetching sites:', error);
+      toast.error('Failed to fetch sites');
+      setSites([]);
     }
   };
 
@@ -635,7 +342,7 @@ const DailyLogs = () => {
   };
 
   const exportTemplate = () => {
-    const template = 'Employee Name/CPR,Date,NT Hours,ROT Hours,HOT Hours,Site Code\nDEEPAK KUMAR,2025-03-01,8,2,0,WS#91';
+    const template = 'Employee Name/CPR,Date,NT Hours,ROT Hours,HOT Hours,Site Code\nExample Employee,2025-03-01,8,2,0,WS001';
     const blob = new Blob([template], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -1242,7 +949,7 @@ const DailyLogs = () => {
                 value={bulkData}
                 onChange={(e) => setBulkData(e.target.value)}
                 className="input h-32"
-                placeholder="DEEPAK KUMAR,2025-03-01,8,2,0,WS#91&#10;ARUNKUMAR PC,2025-03-01,8,1,1,SITE-A"
+                                  placeholder="Example Employee,2025-03-01,8,2,0,WS001&#10;Another Employee,2025-03-01,8,1,1,SITE-A"
               />
               <p className="form-help">
                 Format: Employee Name/CPR, Date (YYYY-MM-DD), NT Hours, ROT Hours, HOT Hours, Site Code
