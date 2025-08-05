@@ -23,10 +23,11 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!supabaseServiceKey) {
   console.error('❌ SUPABASE_SERVICE_ROLE_KEY is required for server-side operations');
-  process.exit(1);
+  // Don't exit in serverless environment, just log the error
+  console.error('Server will not function properly without service role key');
 }
 
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+const supabase = createClient(supabaseUrl, supabaseServiceKey || 'dummy-key');
 
 // Authentication middleware
 const authenticateUser = async (req, res, next) => {
@@ -79,6 +80,18 @@ const requireRole = (allowedRoles) => {
     next();
   };
 };
+
+// ========================================
+// HEALTH CHECK
+// ========================================
+
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
 
 // ========================================
 // AUTHENTICATION ROUTES
@@ -717,17 +730,25 @@ app.delete('/api/salary-advances/:id', authenticateUser, requireRole(['admin']),
 // Get all users (admin/editor only)
 app.get('/api/users', authenticateUser, requireRole(['admin', 'editor']), async (req, res) => {
   try {
+    console.log('Fetching users...');
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+      console.error('Supabase error:', error);
+      throw error;
+    }
 
+    console.log(`Found ${data?.length || 0} users`);
     res.json(data || []);
   } catch (error) {
     console.error('Error fetching users:', error);
-    res.status(500).json({ error: 'Failed to fetch users' });
+    res.status(500).json({ 
+      error: 'Failed to fetch users',
+      details: error.message 
+    });
   }
 });
 
