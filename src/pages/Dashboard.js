@@ -224,7 +224,7 @@ const Dashboard = () => {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-600">Total Pay</p>
-                  <p className="text-2xl font-semibold text-gray-900 tracking-tight">${stats.totalPay.toFixed(2)}</p>
+                  <p className="text-2xl font-semibold text-gray-900 tracking-tight">BHD {stats.totalPay.toFixed(3)}</p>
                 </div>
               </div>
               {stats.totalPay === 0 && (

@@ -344,9 +344,9 @@ const Employees = () => {
                       <td>
                         <span className="badge badge-outline text-xs">{employee.category}</span>
                       </td>
-                      <td className="font-mono text-sm">${employee.nt_rate}</td>
-                      <td className="font-mono text-sm">${employee.rot_rate}</td>
-                      <td className="font-mono text-sm">${employee.hot_rate}</td>
+                                          <td className="font-mono text-sm">BHD {employee.nt_rate}</td>
+                    <td className="font-mono text-sm">BHD {employee.rot_rate}</td>
+                    <td className="font-mono text-sm">BHD {employee.hot_rate}</td>
                       <td>
                         <div className="flex items-center gap-2">
                           <button
