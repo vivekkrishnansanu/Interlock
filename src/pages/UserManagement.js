@@ -35,8 +35,50 @@ const UserManagement = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const data = await apiService.getUsers();
-      setUsers(data || []);
+      
+      // Check if user is a demo user
+      const demoEmails = ['leadership@interlock.com', 'admin@interlock.com', 'viewer@interlock.com'];
+      const isDemoUser = demoEmails.includes(userProfile?.email);
+      
+      if (isDemoUser) {
+        console.log('Demo user detected, using mock data for users...');
+        // For demo users, return mock data
+        const mockUsers = [
+          {
+            id: 'admin-demo-id',
+            name: 'Admin User',
+            email: 'admin@interlock.com',
+            role: 'admin',
+            created_at: new Date().toISOString()
+          },
+          {
+            id: 'leadership-demo-id',
+            name: 'Leadership User', 
+            email: 'leadership@interlock.com',
+            role: 'leadership',
+            created_at: new Date().toISOString()
+          },
+          {
+            id: 'viewer-demo-id',
+            name: 'Viewer User',
+            email: 'viewer@interlock.com', 
+            role: 'viewer',
+            created_at: new Date().toISOString()
+          },
+          {
+            id: 'editor-demo-id',
+            name: 'Editor User',
+            email: 'editor@interlock.com',
+            role: 'editor', 
+            created_at: new Date().toISOString()
+          }
+        ];
+        setUsers(mockUsers);
+      } else {
+        // For real users, use API service
+        const data = await apiService.getUsers();
+        setUsers(data || []);
+      }
     } catch (error) {
       console.error('Error fetching users:', error);
       toast.error('Failed to fetch users');
