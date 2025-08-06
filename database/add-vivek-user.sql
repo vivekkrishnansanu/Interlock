@@ -1,32 +1,60 @@
--- Add Vivek as a user in the system
--- This script adds Vivek with admin privileges
+-- Add Vivek as a real user in the system
+-- This script creates a complete user setup with authentication
 
--- First, insert into profiles table (this will work for demo mode)
-INSERT INTO profiles (
-  id,
-  name,
-  email,
-  role,
-  created_at,
-  updated_at
-) VALUES (
-  'vivek-user-real-id',
-  'Vivek',
-  'vivekkrishnansanu@gmail.com',
-  'admin',
-  NOW(),
-  NOW()
-) ON CONFLICT (email) DO UPDATE SET
-  name = EXCLUDED.name,
-  role = EXCLUDED.role,
-  updated_at = NOW();
-
--- Note: For full functionality, you would also need to:
--- 1. Create a Supabase Auth user with this email
--- 2. Link the auth user ID to the profile
+-- Step 1: Create the user in Supabase Auth (this needs to be done via Supabase Dashboard or API)
+-- Go to: Supabase Dashboard > Authentication > Users > Add User
+-- Email: vivekkrishnansanu@gmail.com
+-- Password: (choose a secure password)
+-- Email Confirm: Yes
 -- 
--- This can be done through the Supabase dashboard or via the admin API
--- when you're ready to move from demo mode to production mode.
+-- OR use the admin API (requires service role key):
+-- This will be handled by the backend API endpoint we created
+
+-- Step 2: Insert/Update profile in database
+-- Note: The user ID should match the Supabase Auth user ID
+-- For now, we'll use a placeholder that can be updated later
+
+DO $$
+DECLARE
+    user_uuid UUID;
+BEGIN
+    -- Generate a UUID for the user (this should be replaced with actual Supabase Auth user ID)
+    user_uuid := gen_random_uuid();
+    
+    -- Insert into profiles table
+    INSERT INTO profiles (
+        id,
+        name,
+        email,
+        role,
+        created_at,
+        updated_at
+    ) VALUES (
+        user_uuid,
+        'Vivek',
+        'vivekkrishnansanu@gmail.com',
+        'admin',
+        NOW(),
+        NOW()
+    ) ON CONFLICT (email) DO UPDATE SET
+        name = EXCLUDED.name,
+        role = EXCLUDED.role,
+        updated_at = NOW();
+    
+    -- Output the generated UUID for reference
+    RAISE NOTICE 'User created with ID: %', user_uuid;
+END $$;
 
 -- Verify the user was added
-SELECT * FROM profiles WHERE email = 'vivekkrishnansanu@gmail.com';
+SELECT 
+    id,
+    name,
+    email,
+    role,
+    created_at,
+    updated_at
+FROM profiles 
+WHERE email = 'vivekkrishnansanu@gmail.com';
+
+-- Grant necessary permissions (if using RLS)
+-- The user will inherit permissions based on their role through the RLS policies
