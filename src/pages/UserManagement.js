@@ -71,6 +71,13 @@ const UserManagement = () => {
             email: 'editor@interlock.com',
             role: 'editor', 
             created_at: new Date().toISOString()
+          },
+          {
+            id: 'vivek-user-id',
+            name: 'Vivek',
+            email: 'vivekkrishnansanu@gmail.com',
+            role: 'admin', 
+            created_at: new Date().toISOString()
           }
         ];
         setUsers(mockUsers);
