@@ -1,16 +1,38 @@
 /**
- * Wage calculation utilities based on Excel logic
+ * Wage calculation utilities with monthly rate adjustment
  */
 
-// Calculate daily wage for an employee
+// Calculate dynamic rates based on basic pay and month
+const calculateMonthlyRates = (basicPay, month, year) => {
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const dailyRate = basicPay / daysInMonth;
+  const hourlyRate = dailyRate / 8;
+  
+  return {
+    ntRate: hourlyRate,
+    rotRate: hourlyRate * 1.25,
+    hotRate: hourlyRate * 1.5
+  };
+};
+
+// Calculate daily wage for an employee with dynamic rates
 const calculateDailyWage = (dailyLog, employee) => {
   const { ntHours = 0, rotHours = 0, hotHours = 0 } = dailyLog;
-  const { ntRate = 0, rotRate = 0, hotRate = 0 } = employee;
+  const { basicPay = 0, ntRate = 0, rotRate = 0, hotRate = 0 } = employee;
+
+  // Calculate dynamic rates if basic pay is available
+  let rates = { ntRate: ntRate || 0, rotRate: rotRate || 0, hotRate: hotRate || 0 };
+  
+  if (basicPay > 0) {
+    const logDate = new Date(dailyLog.date);
+    const dynamicRates = calculateMonthlyRates(basicPay, logDate.getMonth(), logDate.getFullYear());
+    rates = dynamicRates;
+  }
 
   // Calculate pay for each type with validation
-  const normalPay = (ntHours || 0) * (ntRate || 0);
-  const regularOTPay = (rotHours || 0) * (rotRate || 0);
-  const holidayOTPay = (hotHours || 0) * (hotRate || 0);
+  const normalPay = (ntHours || 0) * (rates.ntRate || 0);
+  const regularOTPay = (rotHours || 0) * (rates.rotRate || 0);
+  const holidayOTPay = (hotHours || 0) * (rates.hotRate || 0);
 
   // Total daily pay
   const totalPay = normalPay + regularOTPay + holidayOTPay;
@@ -19,11 +41,12 @@ const calculateDailyWage = (dailyLog, employee) => {
     normalPay: normalPay || 0,
     regularOTPay: regularOTPay || 0,
     holidayOTPay: holidayOTPay || 0,
-    totalPay: totalPay || 0
+    totalPay: totalPay || 0,
+    rates: rates // Include rates for transparency
   };
 };
 
-// Calculate monthly summary for an employee
+// Calculate monthly summary for an employee with dynamic rates
 const calculateMonthlySummary = (dailyLogs, employee, month, year) => {
   // Filter logs for the specific month
   const monthLogs = dailyLogs.filter(log => {
@@ -43,10 +66,18 @@ const calculateMonthlySummary = (dailyLogs, employee, month, year) => {
     totalHot += log.hotHours || 0;
   });
 
-  // Calculate pay amounts according to the specified logic with validation
-  const totalNormalTimePay = totalNt * (employee.ntRate || 0);
-  const totalRegularOTPay = totalRot * (employee.rotRate || 0);
-  const totalHolidayOTPay = totalHot * (employee.hotRate || 0);
+  // Calculate dynamic rates for the month
+  let rates = { ntRate: employee.ntRate || 0, rotRate: employee.rotRate || 0, hotRate: employee.hotRate || 0 };
+  
+  if (employee.basicPay > 0) {
+    const dynamicRates = calculateMonthlyRates(employee.basicPay, month, year);
+    rates = dynamicRates;
+  }
+
+  // Calculate pay amounts using dynamic rates
+  const totalNormalTimePay = totalNt * (rates.ntRate || 0);
+  const totalRegularOTPay = totalRot * (rates.rotRate || 0);
+  const totalHolidayOTPay = totalHot * (rates.hotRate || 0);
 
   // Calculate total pay
   const totalPay = totalNormalTimePay + totalRegularOTPay + totalHolidayOTPay;
@@ -58,6 +89,9 @@ const calculateMonthlySummary = (dailyLogs, employee, month, year) => {
   
   // Round off Net Pay to nearest 1 decimal
   const roundedNetPay = Math.round((netPay || 0) * 10) / 10;
+
+  // Get days in month for transparency
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
 
   return {
     employeeId: employee.id,
@@ -75,19 +109,34 @@ const calculateMonthlySummary = (dailyLogs, employee, month, year) => {
     deductions: deductions || 0,
     netPay: netPay || 0,
     roundedNetPay: roundedNetPay || 0,
-    totalDays: monthLogs.length
+    totalDays: monthLogs.length,
+    // Add rate information for transparency
+    calculatedNtRate: rates.ntRate,
+    calculatedRotRate: rates.rotRate,
+    calculatedHotRate: rates.hotRate,
+    daysInMonth: daysInMonth,
+    basicPay: employee.basicPay || 0
   };
 };
 
-// Calculate daily wage with deductions
+// Calculate daily wage with deductions and dynamic rates
 const calculateDailyWageWithDeductions = (dailyLog, employee) => {
   const { ntHours = 0, rotHours = 0, hotHours = 0 } = dailyLog;
-  const { ntRate = 0, rotRate = 0, hotRate = 0, allowance = 0, deductions = 0 } = employee;
+  const { basicPay = 0, ntRate = 0, rotRate = 0, hotRate = 0, allowance = 0, deductions = 0 } = employee;
+
+  // Calculate dynamic rates if basic pay is available
+  let rates = { ntRate: ntRate || 0, rotRate: rotRate || 0, hotRate: hotRate || 0 };
+  
+  if (basicPay > 0) {
+    const logDate = new Date(dailyLog.date);
+    const dynamicRates = calculateMonthlyRates(basicPay, logDate.getMonth(), logDate.getFullYear());
+    rates = dynamicRates;
+  }
 
   // Calculate pay for each type with validation
-  const normalPay = (ntHours || 0) * (ntRate || 0);
-  const regularOTPay = (rotHours || 0) * (rotRate || 0);
-  const holidayOTPay = (hotHours || 0) * (hotRate || 0);
+  const normalPay = (ntHours || 0) * (rates.ntRate || 0);
+  const regularOTPay = (rotHours || 0) * (rates.rotRate || 0);
+  const holidayOTPay = (hotHours || 0) * (rates.hotRate || 0);
 
   // Total daily pay
   const totalPay = normalPay + regularOTPay + holidayOTPay;
@@ -106,7 +155,8 @@ const calculateDailyWageWithDeductions = (dailyLog, employee) => {
     finalPay: finalPay || 0,
     deductions: deductions || 0,
     netPay: netPay || 0,
-    roundedNetPay: roundedNetPay || 0
+    roundedNetPay: roundedNetPay || 0,
+    rates: rates // Include rates for transparency
   };
 };
 

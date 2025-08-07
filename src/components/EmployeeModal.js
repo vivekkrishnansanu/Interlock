@@ -10,6 +10,7 @@ const EmployeeModal = ({ employee, onSave, onClose }) => {
     designation: '',
     site_id: '',
     category: 'General',
+    basic_pay: 0,
     nt_rate: 0,
     rot_rate: 0,
     hot_rate: 0,
@@ -48,6 +49,7 @@ const EmployeeModal = ({ employee, onSave, onClose }) => {
         designation: employee.designation || '',
         site_id: employee.site_id || '',
         category: employee.category || 'General',
+        basic_pay: employee.basic_pay || 0,
         nt_rate: employee.nt_rate || 0,
         rot_rate: employee.rot_rate || 0,
         hot_rate: employee.hot_rate || 0,
@@ -69,6 +71,7 @@ const EmployeeModal = ({ employee, onSave, onClose }) => {
         designation: formData.designation,
         site_id: formData.site_id || null,
         category: formData.category,
+        basic_pay: parseFloat(formData.basic_pay) || 0,
         nt_rate: parseFloat(formData.nt_rate) || 0,
         rot_rate: parseFloat(formData.rot_rate) || 0,
         hot_rate: parseFloat(formData.hot_rate) || 0,
@@ -205,7 +208,25 @@ const EmployeeModal = ({ employee, onSave, onClose }) => {
           {/* Rate Information */}
           <div className="border-t pt-6">
             <h4 className="text-md font-semibold text-gray-900 mb-4">Rate Information</h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="form-group">
+                <label className="form-label flex items-center">
+                  <DollarSign size={16} className="mr-2" />
+                  Basic Pay (Monthly) *
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={formData.basic_pay}
+                  onChange={(e) => setFormData({...formData, basic_pay: e.target.value})}
+                  className="input"
+                  placeholder="e.g., 3120.000"
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Monthly basic pay for dynamic rate calculation
+                </p>
+              </div>
               <div className="form-group">
                 <label className="form-label flex items-center">
                   <DollarSign size={16} className="mr-2" />
