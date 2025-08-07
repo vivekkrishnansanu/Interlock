@@ -99,6 +99,50 @@ const Sites = () => {
     }
   };
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    try {
+      if (editingSite) {
+        // Update existing site
+        const { error } = await supabase
+          .from('sites')
+          .update({
+            name: formData.name,
+            code: formData.code,
+            location: formData.location,
+            description: formData.description,
+            status: formData.status,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', editingSite.id);
+
+        if (error) throw error;
+        toast.success('Site updated successfully');
+      } else {
+        // Create new site
+        const { error } = await supabase
+          .from('sites')
+          .insert({
+            name: formData.name,
+            code: formData.code,
+            location: formData.location,
+            description: formData.description,
+            status: formData.status
+          });
+
+        if (error) throw error;
+        toast.success('Site created successfully');
+      }
+
+      setShowModal(false);
+      fetchSites();
+    } catch (error) {
+      console.error('Error saving site:', error);
+      toast.error(error.message || 'Failed to save site');
+    }
+  };
+
   const handleSaveSite = async (savedSite) => {
     setShowModal(false);
     setEditingSite(null);
@@ -284,7 +328,97 @@ const Sites = () => {
             </div>
             
             <div className="p-6">
-              <p className="text-gray-600">Site modal content would go here...</p>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                    Site Name *
+                  </label>
+                  <input
+                    type="text"
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter site name"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="code" className="block text-sm font-medium text-gray-700 mb-1">
+                    Site Code *
+                  </label>
+                  <input
+                    type="text"
+                    id="code"
+                    value={formData.code}
+                    onChange={(e) => setFormData({...formData, code: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="e.g., WS001"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-1">
+                    Location
+                  </label>
+                  <input
+                    type="text"
+                    id="location"
+                    value={formData.location}
+                    onChange={(e) => setFormData({...formData, location: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter site location"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+                    Description
+                  </label>
+                  <textarea
+                    id="description"
+                    value={formData.description}
+                    onChange={(e) => setFormData({...formData, description: e.target.value})}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter site description"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
+                    Status
+                  </label>
+                  <select
+                    id="status"
+                    value={formData.status}
+                    onChange={(e) => setFormData({...formData, status: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                    <option value="maintenance">Maintenance</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center justify-end space-x-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowModal(false)}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+                  >
+                    {editingSite ? 'Update Site' : 'Add Site'}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </div>

@@ -75,9 +75,10 @@ This guide explains how to add Vivek (vivekkrishnansanu@gmail.com) as a real aut
    - Create Supabase auth user manually
    - Link to existing profile
 
-## 🔐 Suggested Password
-- **Password**: `VivekSecure123!`
-- **Alternative**: Any secure password of your choice
+## 🔐 Vivek's Password
+- **Password**: `Admin@123`
+- **Set by**: User request
+- **Status**: Configured in Supabase
 
 ## ✅ Verification Steps
 
@@ -86,7 +87,7 @@ After setup, verify the user works:
 1. **Login Test**:
    - Go to your app login page
    - Email: `vivekkrishnansanu@gmail.com`
-   - Password: (the one you set)
+   - Password: `Admin@123`
 
 2. **Admin Access Test**:
    - Navigate to User Management
