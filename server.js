@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 
@@ -16,6 +17,10 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
+
+// Serve static files from the React app
+app.use(express.static('build')); // Serve from build directory
+app.use(express.static('public')); // Fallback to public
 
 // Supabase configuration - using service role key for server-side operations
 const supabaseUrl = process.env.SUPABASE_URL || 'https://nviyxewmtbpstmlhaaic.supabase.co';
@@ -985,9 +990,15 @@ app.get('/api/monthly-summaries', authenticateUser, async (req, res) => {
 // ERROR HANDLING
 // ========================================
 
-// 404 handler
-app.use('*', (req, res) => {
-  res.status(404).json({ error: 'Route not found' });
+// Serve React app for any non-API routes
+app.get('*', (req, res) => {
+  // Don't serve React app for API routes
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({ error: 'Route not found' });
+  }
+  
+  // Serve the React app
+  res.sendFile(path.join(__dirname, 'build', 'index.html'));
 });
 
 // Global error handler

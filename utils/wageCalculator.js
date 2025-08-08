@@ -18,15 +18,23 @@ const calculateMonthlyRates = (basicPay, month, year) => {
 // Calculate daily wage for an employee with dynamic rates
 const calculateDailyWage = (dailyLog, employee) => {
   const { ntHours = 0, rotHours = 0, hotHours = 0 } = dailyLog;
-  const { basicPay = 0, ntRate = 0, rotRate = 0, hotRate = 0 } = employee;
+  const { basicPay = 0, ntRate = 0, rotRate = 0, hotRate = 0, employmentType = 'permanent', hourlyWage = 0 } = employee;
 
-  // Calculate dynamic rates if basic pay is available
+  // Calculate rates based on employment type
   let rates = { ntRate: ntRate || 0, rotRate: rotRate || 0, hotRate: hotRate || 0 };
   
-  if (basicPay > 0) {
+  if (employmentType === 'permanent' && basicPay > 0) {
+    // For permanent employees, calculate dynamic rates from basic pay
     const logDate = new Date(dailyLog.date);
     const dynamicRates = calculateMonthlyRates(basicPay, logDate.getMonth(), logDate.getFullYear());
     rates = dynamicRates;
+  } else if (employmentType === 'flexi visa' && hourlyWage > 0) {
+    // For flexi visa employees, use hourly wage with multipliers
+    rates = {
+      ntRate: hourlyWage,
+      rotRate: hourlyWage * 1.25,
+      hotRate: hourlyWage * 1.5
+    };
   }
 
   // Calculate pay for each type with validation
@@ -42,7 +50,8 @@ const calculateDailyWage = (dailyLog, employee) => {
     regularOTPay: regularOTPay || 0,
     holidayOTPay: holidayOTPay || 0,
     totalPay: totalPay || 0,
-    rates: rates // Include rates for transparency
+    rates: rates, // Include rates for transparency
+    employmentType: employmentType
   };
 };
 
@@ -66,12 +75,20 @@ const calculateMonthlySummary = (dailyLogs, employee, month, year) => {
     totalHot += log.hotHours || 0;
   });
 
-  // Calculate dynamic rates for the month
+  // Calculate rates for the month based on employment type
   let rates = { ntRate: employee.ntRate || 0, rotRate: employee.rotRate || 0, hotRate: employee.hotRate || 0 };
   
-  if (employee.basicPay > 0) {
+  if (employee.employmentType === 'permanent' && employee.basicPay > 0) {
+    // For permanent employees, calculate dynamic rates from basic pay
     const dynamicRates = calculateMonthlyRates(employee.basicPay, month, year);
     rates = dynamicRates;
+  } else if (employee.employmentType === 'flexi visa' && employee.hourlyWage > 0) {
+    // For flexi visa employees, use hourly wage with multipliers
+    rates = {
+      ntRate: employee.hourlyWage,
+      rotRate: employee.hourlyWage * 1.25,
+      hotRate: employee.hourlyWage * 1.5
+    };
   }
 
   // Calculate pay amounts using dynamic rates
@@ -115,7 +132,9 @@ const calculateMonthlySummary = (dailyLogs, employee, month, year) => {
     calculatedRotRate: rates.rotRate,
     calculatedHotRate: rates.hotRate,
     daysInMonth: daysInMonth,
-    basicPay: employee.basicPay || 0
+    basicPay: employee.basicPay || 0,
+    employmentType: employee.employmentType || 'permanent',
+    hourlyWage: employee.hourlyWage || 0
   };
 };
 

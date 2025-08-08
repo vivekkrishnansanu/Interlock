@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, User, Building, DollarSign, Calendar, Hash, Briefcase } from 'lucide-react';
+import { X, Save, User, Building, DollarSign, Calendar, Hash, Briefcase, Clock } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
 
@@ -8,38 +8,18 @@ const EmployeeModal = ({ employee, onSave, onClose }) => {
     name: '',
     cpr: '',
     designation: '',
-    site_id: '',
-    category: 'General',
+    employment_type: 'permanent',
+    salary_type: 'monthly',
     basic_pay: 0,
-    nt_rate: 0,
-    rot_rate: 0,
-    hot_rate: 0,
+    hourly_wage: 0,
     allowance: 0,
     deductions: 0,
     notes: ''
   });
-  const [sites, setSites] = useState([]);
+
   const [loading, setLoading] = useState(false);
 
-  // Fetch sites for dropdown
-  useEffect(() => {
-    const fetchSites = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('sites')
-          .select('id, name, code')
-          .order('name', { ascending: true });
 
-        if (error) throw error;
-        setSites(data || []);
-      } catch (error) {
-        console.error('Error fetching sites:', error);
-        toast.error('Failed to fetch sites');
-      }
-    };
-
-    fetchSites();
-  }, []);
 
   useEffect(() => {
     if (employee) {
@@ -47,18 +27,27 @@ const EmployeeModal = ({ employee, onSave, onClose }) => {
         name: employee.name || '',
         cpr: employee.cpr || '',
         designation: employee.designation || '',
-        site_id: employee.site_id || '',
-        category: employee.category || 'General',
+        employment_type: employee.employment_type || 'permanent',
+        salary_type: employee.salary_type || 'monthly',
         basic_pay: employee.basic_pay || 0,
-        nt_rate: employee.nt_rate || 0,
-        rot_rate: employee.rot_rate || 0,
-        hot_rate: employee.hot_rate || 0,
+        hourly_wage: employee.hourly_wage || 0,
         allowance: employee.allowance || 0,
         deductions: employee.deductions || 0,
         notes: employee.notes || ''
       });
     }
   }, [employee]);
+
+  // Update salary type when employment type changes
+  const handleEmploymentTypeChange = (type) => {
+    setFormData({
+      ...formData,
+      employment_type: type,
+      salary_type: type === 'permanent' ? 'monthly' : 'hourly',
+      basic_pay: type === 'permanent' ? formData.basic_pay : 0,
+      hourly_wage: type === 'flexi visa' ? formData.hourly_wage : 0
+    });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -69,12 +58,14 @@ const EmployeeModal = ({ employee, onSave, onClose }) => {
         name: formData.name,
         cpr: formData.cpr,
         designation: formData.designation,
-        site_id: formData.site_id || null,
-        category: formData.category,
-        basic_pay: parseFloat(formData.basic_pay) || 0,
-        nt_rate: parseFloat(formData.nt_rate) || 0,
-        rot_rate: parseFloat(formData.rot_rate) || 0,
-        hot_rate: parseFloat(formData.hot_rate) || 0,
+        employment_type: formData.employment_type,
+        salary_type: formData.salary_type,
+        basic_pay: formData.employment_type === 'permanent' ? parseFloat(formData.basic_pay) || 0 : 0,
+        hourly_wage: formData.employment_type === 'flexi visa' ? parseFloat(formData.hourly_wage) || 0 : 0,
+        // Set default rates based on employment type
+        nt_rate: formData.employment_type === 'permanent' ? 0 : parseFloat(formData.hourly_wage) || 0,
+        rot_rate: formData.employment_type === 'permanent' ? 0 : (parseFloat(formData.hourly_wage) || 0) * 1.25,
+        hot_rate: formData.employment_type === 'permanent' ? 0 : (parseFloat(formData.hourly_wage) || 0) * 1.5,
         allowance: parseFloat(formData.allowance) || 0,
         deductions: parseFloat(formData.deductions) || 0,
         notes: formData.notes
@@ -174,101 +165,64 @@ const EmployeeModal = ({ employee, onSave, onClose }) => {
             </div>
             <div className="form-group">
               <label className="form-label flex items-center">
-                <Building size={16} className="mr-2" />
-                Work Site
+                <Calendar size={16} className="mr-2" />
+                Employment Type *
               </label>
               <select
-                value={formData.site_id}
-                onChange={(e) => setFormData({...formData, site_id: e.target.value})}
+                value={formData.employment_type}
+                onChange={(e) => handleEmploymentTypeChange(e.target.value)}
                 className="input"
+                required
               >
-                <option value="">Select Site</option>
-                {sites.map((site) => (
-                  <option key={site.id} value={site.id}>
-                    {site.name} ({site.code})
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="form-group">
-              <label className="form-label">Category</label>
-              <select
-                value={formData.category}
-                onChange={(e) => setFormData({...formData, category: e.target.value})}
-                className="input"
-              >
-                <option value="General">General</option>
-                <option value="Skilled">Skilled</option>
-                <option value="Supervisor">Supervisor</option>
-                <option value="Manager">Manager</option>
+                <option value="permanent">Permanent Employee</option>
+                <option value="flexi visa">Flexi Visa Employee</option>
               </select>
             </div>
           </div>
 
-          {/* Rate Information */}
+          {/* Salary Information */}
           <div className="border-t pt-6">
-            <h4 className="text-md font-semibold text-gray-900 mb-4">Rate Information</h4>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="form-group">
-                <label className="form-label flex items-center">
-                  <DollarSign size={16} className="mr-2" />
-                  Basic Pay (Monthly) *
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={formData.basic_pay}
-                  onChange={(e) => setFormData({...formData, basic_pay: e.target.value})}
-                  className="input"
-                  placeholder="e.g., 3120.000"
-                  required
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Monthly basic pay for dynamic rate calculation
-                </p>
-              </div>
-              <div className="form-group">
-                <label className="form-label flex items-center">
-                  <DollarSign size={16} className="mr-2" />
-                  NT Rate *
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={formData.nt_rate}
-                  onChange={(e) => setFormData({...formData, nt_rate: e.target.value})}
-                  className="input"
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label className="form-label flex items-center">
-                  <DollarSign size={16} className="mr-2" />
-                  ROT Rate *
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={formData.rot_rate}
-                  onChange={(e) => setFormData({...formData, rot_rate: e.target.value})}
-                  className="input"
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label className="form-label flex items-center">
-                  <DollarSign size={16} className="mr-2" />
-                  HOT Rate *
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={formData.hot_rate}
-                  onChange={(e) => setFormData({...formData, hot_rate: e.target.value})}
-                  className="input"
-                  required
-                />
-              </div>
+            <h4 className="text-md font-semibold text-gray-900 mb-4">Salary Information</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {formData.employment_type === 'permanent' ? (
+                <div className="form-group">
+                  <label className="form-label flex items-center">
+                    <DollarSign size={16} className="mr-2" />
+                    Basic Pay (Monthly) *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={formData.basic_pay}
+                    onChange={(e) => setFormData({...formData, basic_pay: e.target.value})}
+                    className="input"
+                    placeholder="e.g., 3120.000"
+                    required
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Monthly basic pay for dynamic rate calculation
+                  </p>
+                </div>
+              ) : (
+                <div className="form-group">
+                  <label className="form-label flex items-center">
+                    <Clock size={16} className="mr-2" />
+                    Hourly Wage *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={formData.hourly_wage}
+                    onChange={(e) => setFormData({...formData, hourly_wage: e.target.value})}
+                    className="input"
+                    placeholder="e.g., 15.50"
+                    required
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Per hour wage for flexi visa employees
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 

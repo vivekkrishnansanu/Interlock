@@ -9,9 +9,11 @@ import {
   Download 
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
 
 const Sites = () => {
+  const { userProfile, isLeadership, isAdmin } = useAuth();
   const [sites, setSites] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -25,17 +27,55 @@ const Sites = () => {
     status: 'active'
   });
 
-  // Fetch sites from Supabase
+  // Fetch sites from Supabase with role-based filtering
   const fetchSites = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('sites')
-        .select('*')
-        .order('name', { ascending: true });
+      console.log('🔍 Fetching sites for user:', userProfile?.email, 'Role:', userProfile?.role);
+      
+      // For demo users, show appropriate data based on role
+      const demoEmails = ['leadership@interlock.com', 'admin@interlock.com', 'viewer@interlock.com'];
+      const isDemoUser = demoEmails.includes(userProfile?.email);
+      
+      if (isDemoUser) {
+        console.log('🔧 Demo user detected, showing role-appropriate sites...');
+        
+        // For leadership users, show only real sites (no demo data)
+        if (isLeadership) {
+          console.log('🔧 Leadership user - fetching only real sites from database...');
+          const { data, error } = await supabase
+            .from('sites')
+            .select('*')
+            .not('name', 'ilike', '%test%')
+            .not('name', 'ilike', '%demo%')
+            .not('name', 'ilike', '%dummy%')
+            .order('name', { ascending: true });
 
-      if (error) throw error;
-      setSites(data || []);
+          if (error) throw error;
+          console.log('✅ Real sites fetched:', data?.length || 0);
+          setSites(data || []);
+        } else {
+          // For admin and viewer, show all sites
+          const { data, error } = await supabase
+            .from('sites')
+            .select('*')
+            .order('name', { ascending: true });
+
+          if (error) throw error;
+          console.log('✅ All sites fetched:', data?.length || 0);
+          setSites(data || []);
+        }
+      } else {
+        // For real users, show all sites
+        const { data, error } = await supabase
+          .from('sites')
+          .select('*')
+          .order('name', { ascending: true });
+
+        if (error) throw error;
+        console.log('✅ Sites fetched for real user:', data?.length || 0);
+        setSites(data || []);
+      }
     } catch (error) {
       console.error('Error fetching sites:', error);
       toast.error('Failed to fetch sites');
@@ -47,7 +87,7 @@ const Sites = () => {
 
   useEffect(() => {
     fetchSites();
-  }, []);
+  }, [userProfile]);
 
   // Filter sites
   const filteredSites = sites.filter(site => 
@@ -151,14 +191,13 @@ const Sites = () => {
 
   const exportSites = () => {
     const csvContent = [
-      ['Name', 'Code', 'Address', 'Contact Person', 'Phone', 'Email'],
+      ['Name', 'Code', 'Location', 'Description', 'Status'],
       ...filteredSites.map(site => [
         site.name,
         site.code,
-        site.address,
-        site.contact_person,
-        site.phone,
-        site.email
+        site.location || '',
+        site.description || '',
+        site.status || 'active'
       ])
     ].map(row => row.join(',')).join('\n');
 
@@ -200,13 +239,15 @@ const Sites = () => {
                 <Download size={16} className="mr-2" />
                 Export
               </button>
-              <button
-                onClick={handleAddSite}
-                className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
-              >
-                <Plus size={16} className="mr-2" />
-                Add Site
-              </button>
+              {!isLeadership && (
+                <button
+                  onClick={handleAddSite}
+                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+                >
+                  <Plus size={16} className="mr-2" />
+                  Add Site
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -236,9 +277,11 @@ const Sites = () => {
               </div>
               <h3 className="mt-2 text-sm font-medium text-gray-900">No sites found</h3>
               <p className="mt-1 text-sm text-gray-500">
-                {searchTerm ? 'No sites match your search criteria.' : 'Get started by adding your first work site.'}
+                {searchTerm ? 'No sites match your search criteria.' : 
+                 isLeadership ? 'No sites are currently available for your role.' : 
+                 'Get started by adding your first work site.'}
               </p>
-              {!searchTerm && (
+              {!searchTerm && !isLeadership && (
                 <div className="mt-6">
                   <button
                     onClick={handleAddSite}
@@ -264,40 +307,44 @@ const Sites = () => {
                         <p className="text-sm text-gray-500">Code: {site.code}</p>
                       </div>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() => handleEditSite(site)}
-                        className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors duration-200"
-                        title="Edit site"
-                      >
-                        <Edit size={16} />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteSite(site.id)}
-                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors duration-200"
-                        title="Delete site"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
+                    {!isLeadership && (
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => handleEditSite(site)}
+                          className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors duration-200"
+                          title="Edit site"
+                        >
+                          <Edit size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteSite(site.id)}
+                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors duration-200"
+                          title="Delete site"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    )}
                   </div>
                   
                   <div className="space-y-3 text-sm">
                     <div>
-                      <span className="font-medium text-gray-700">Address:</span>
-                      <p className="text-gray-600 mt-1">{site.address || 'Not specified'}</p>
+                      <span className="font-medium text-gray-700">Location:</span>
+                      <p className="text-gray-600 mt-1">{site.location || 'Not specified'}</p>
                     </div>
                     <div>
-                      <span className="font-medium text-gray-700">Contact:</span>
-                      <p className="text-gray-600 mt-1">{site.contact_person || 'Not specified'}</p>
+                      <span className="font-medium text-gray-700">Description:</span>
+                      <p className="text-gray-600 mt-1">{site.description || 'Not specified'}</p>
                     </div>
                     <div>
-                      <span className="font-medium text-gray-700">Phone:</span>
-                      <p className="text-gray-600 mt-1">{site.phone || 'Not specified'}</p>
-                    </div>
-                    <div>
-                      <span className="font-medium text-gray-700">Email:</span>
-                      <p className="text-gray-600 mt-1">{site.email || 'Not specified'}</p>
+                      <span className="font-medium text-gray-700">Status:</span>
+                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                        site.status === 'active' ? 'bg-green-100 text-green-800' :
+                        site.status === 'inactive' ? 'bg-gray-100 text-gray-800' :
+                        'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {site.status || 'active'}
+                      </span>
                     </div>
                   </div>
                 </div>
