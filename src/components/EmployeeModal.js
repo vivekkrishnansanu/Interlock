@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, User, Building, DollarSign, Calendar, Hash, Briefcase, Clock } from 'lucide-react';
+import { X, Save, User, Building, Calendar, Hash, Briefcase, Clock, Coins } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
 
@@ -12,6 +12,8 @@ const EmployeeModal = ({ employee, onSave, onClose }) => {
     salary_type: 'monthly',
     basic_pay: 0,
     hourly_wage: 0,
+    visa_name: '',
+    visa_expiry_date: '',
     allowance: 0,
     deductions: 0,
     notes: ''
@@ -31,6 +33,8 @@ const EmployeeModal = ({ employee, onSave, onClose }) => {
         salary_type: employee.salary_type || 'monthly',
         basic_pay: employee.basic_pay || 0,
         hourly_wage: employee.hourly_wage || 0,
+        visa_name: employee.visa_name || '',
+        visa_expiry_date: employee.visa_expiry_date || '',
         allowance: employee.allowance || 0,
         deductions: employee.deductions || 0,
         notes: employee.notes || ''
@@ -43,9 +47,21 @@ const EmployeeModal = ({ employee, onSave, onClose }) => {
     setFormData({
       ...formData,
       employment_type: type,
-      salary_type: type === 'permanent' ? 'monthly' : 'hourly',
+      // Keep current salary type if it's valid for the new employment type
+      salary_type: formData.salary_type,
       basic_pay: type === 'permanent' ? formData.basic_pay : 0,
       hourly_wage: type === 'flexi visa' ? formData.hourly_wage : 0
+    });
+  };
+
+  // Handle salary type change
+  const handleSalaryTypeChange = (type) => {
+    setFormData({
+      ...formData,
+      salary_type: type,
+      // Clear the other pay field when switching
+      basic_pay: type === 'monthly' ? formData.basic_pay : 0,
+      hourly_wage: type === 'hourly' ? formData.hourly_wage : 0
     });
   };
 
@@ -60,12 +76,14 @@ const EmployeeModal = ({ employee, onSave, onClose }) => {
         designation: formData.designation,
         employment_type: formData.employment_type,
         salary_type: formData.salary_type,
-        basic_pay: formData.employment_type === 'permanent' ? parseFloat(formData.basic_pay) || 0 : 0,
-        hourly_wage: formData.employment_type === 'flexi visa' ? parseFloat(formData.hourly_wage) || 0 : 0,
-        // Set default rates based on employment type
-        nt_rate: formData.employment_type === 'permanent' ? 0 : parseFloat(formData.hourly_wage) || 0,
-        rot_rate: formData.employment_type === 'permanent' ? 0 : (parseFloat(formData.hourly_wage) || 0) * 1.25,
-        hot_rate: formData.employment_type === 'permanent' ? 0 : (parseFloat(formData.hourly_wage) || 0) * 1.5,
+        basic_pay: formData.salary_type === 'monthly' ? parseFloat(formData.basic_pay) || 0 : 0,
+        hourly_wage: formData.salary_type === 'hourly' ? parseFloat(formData.hourly_wage) || 0 : 0,
+        // Set rates based on salary type
+        nt_rate: formData.salary_type === 'hourly' ? parseFloat(formData.hourly_wage) || 0 : 0,
+        rot_rate: formData.salary_type === 'hourly' ? (parseFloat(formData.hourly_wage) || 0) * 1.25 : 0,
+        hot_rate: formData.salary_type === 'hourly' ? (parseFloat(formData.hourly_wage) || 0) * 1.5 : 0,
+        visa_name: formData.visa_name,
+        visa_expiry_date: formData.visa_expiry_date,
         allowance: parseFloat(formData.allowance) || 0,
         deductions: parseFloat(formData.deductions) || 0,
         notes: formData.notes
@@ -178,16 +196,32 @@ const EmployeeModal = ({ employee, onSave, onClose }) => {
                 <option value="flexi visa">Flexi Visa Employee</option>
               </select>
             </div>
+            <div className="form-group">
+              <label className="form-label flex items-center">
+                <Coins size={16} className="mr-2" />
+                Salary Type *
+              </label>
+              <select
+                value={formData.salary_type}
+                onChange={(e) => handleSalaryTypeChange(e.target.value)}
+                className="input"
+                required
+              >
+                <option value="monthly">Monthly Salary</option>
+                <option value="hourly">Hourly Wage</option>
+                <option value="manpower_supply">Manpower Supply</option>
+              </select>
+            </div>
           </div>
 
           {/* Salary Information */}
           <div className="border-t pt-6">
             <h4 className="text-md font-semibold text-gray-900 mb-4">Salary Information</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {formData.employment_type === 'permanent' ? (
+              {formData.salary_type === 'monthly' ? (
                 <div className="form-group">
                   <label className="form-label flex items-center">
-                    <DollarSign size={16} className="mr-2" />
+                    <Coins size={16} className="mr-2" />
                     Basic Pay (Monthly) *
                   </label>
                   <input
@@ -219,10 +253,39 @@ const EmployeeModal = ({ employee, onSave, onClose }) => {
                     required
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    Per hour wage for flexi visa employees
+                    Per hour wage for {formData.employment_type === 'permanent' ? 'permanent' : 'flexi visa'} employees
                   </p>
                 </div>
               )}
+            </div>
+          </div>
+
+          {/* Visa Information */}
+          <div className="border-t pt-6">
+            <h4 className="text-md font-semibold text-gray-900 mb-4">Visa Information</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="form-group">
+                <label className="form-label">Visa Name</label>
+                <select
+                  value={formData.visa_name}
+                  onChange={(e) => setFormData({...formData, visa_name: e.target.value})}
+                  className="input"
+                >
+                  <option value="">Select Visa Name</option>
+                  <option value="Interlock maintenance construction">Interlock maintenance construction</option>
+                  <option value="Interlock services">Interlock services</option>
+                  <option value="Hardscape contracting">Hardscape contracting</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Visa Expiry Date</label>
+                <input
+                  type="date"
+                  value={formData.visa_expiry_date}
+                  onChange={(e) => setFormData({...formData, visa_expiry_date: e.target.value})}
+                  className="input"
+                />
+              </div>
             </div>
           </div>
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Users, 
-  DollarSign, 
+  Coins, 
   Clock, 
   TrendingUp, 
   Calendar, 
@@ -220,7 +220,7 @@ const Dashboard = () => {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg flex items-center justify-center shadow-sm">
-                  <DollarSign size={24} className="text-white" />
+                  <Coins size={24} className="text-white" />
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-600">Total Pay</p>
@@ -272,7 +272,7 @@ const Dashboard = () => {
                 onClick={() => navigate('/allowances')}
                 className="w-full btn btn-outline justify-start hover:bg-orange-50 hover:border-orange-200 hover:text-orange-700 transition-colors duration-200"
               >
-                <DollarSign size={16} className="mr-3" />
+                <Coins size={16} className="mr-3" />
                 Manage Allowances
               </button>
             </div>

@@ -13,7 +13,8 @@ import {
   XCircle,
   Edit, 
   Trash2, 
-  Loader2
+  Loader2,
+  X
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import EmployeeModal from '../components/EmployeeModal';
@@ -28,6 +29,8 @@ const Employees = () => {
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
+  const [filterVisaTypes, setFilterVisaTypes] = useState([]);
+  const [showExportModal, setShowExportModal] = useState(false);
   const [sortBy, setSortBy] = useState('name');
   const [sortOrder, setSortOrder] = useState('asc');
 
@@ -55,8 +58,19 @@ const Employees = () => {
     fetchEmployees();
   }, []);
 
-  // Extract unique categories from real data
+  // Extract unique categories and visa types from real data
   const uniqueCategories = [...new Set(employees.map(emp => emp.category).filter(Boolean))];
+  const uniqueVisaTypes = [...new Set(employees.map(emp => emp.visa_name).filter(Boolean))];
+  
+  // Predefined visa types for selection
+  const predefinedVisaTypes = [
+    'Interlock maintenance construction',
+    'Interlock services', 
+    'Hardscape contracting'
+  ];
+  
+  // Combine unique visa types from database with predefined ones
+  const allVisaTypes = [...new Set([...uniqueVisaTypes, ...predefinedVisaTypes])];
 
   // Filter employees
   const filteredEmployees = employees.filter(employee => {
@@ -64,8 +78,9 @@ const Employees = () => {
                          employee.cpr.includes(searchTerm) ||
                          employee.designation.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = !filterCategory || employee.category === filterCategory;
+    const matchesVisaType = filterVisaTypes.length === 0 || filterVisaTypes.includes(employee.visa_name);
     
-    return matchesSearch && matchesCategory;
+    return matchesSearch && matchesCategory && matchesVisaType;
   });
 
   // Handle sorting
@@ -138,17 +153,24 @@ const Employees = () => {
     await fetchEmployees(); // Refresh the list
   };
 
-  const exportEmployees = () => {
+  const exportEmployees = (selectedVisaTypes = []) => {
+    // Filter employees based on selected visa types
+    const employeesToExport = selectedVisaTypes.length > 0 
+      ? sortedEmployees.filter(emp => selectedVisaTypes.includes(emp.visa_name))
+      : sortedEmployees;
+
     const csvContent = [
-      ['Name', 'CPR', 'Designation', 'Category', 'Employment Type', 'Work Type', 'Salary Type'],
-      ...sortedEmployees.map(emp => [
+      ['Name', 'CPR', 'Designation', 'Category', 'Employment Type', 'Work Type', 'Salary Type', 'Visa Name', 'Visa Expiry Date'],
+      ...employeesToExport.map(emp => [
         emp.name,
         emp.cpr,
         emp.designation,
         emp.category,
         emp.employment_type || 'permanent',
         emp.work_type || 'workshop',
-        emp.salary_type || 'monthly'
+        emp.salary_type || 'monthly',
+        emp.visa_name || '',
+        emp.visa_expiry_date || ''
       ])
     ].map(row => row.join(',')).join('\n');
 
@@ -159,6 +181,17 @@ const Employees = () => {
     a.download = 'employees.csv';
     a.click();
     window.URL.revokeObjectURL(url);
+    
+    setShowExportModal(false);
+    toast.success('Employee data exported successfully!');
+  };
+
+  const handleVisaTypeToggle = (visaType) => {
+    setFilterVisaTypes(prev => 
+      prev.includes(visaType) 
+        ? prev.filter(type => type !== visaType)
+        : [...prev, visaType]
+    );
   };
 
   if (loading) {
@@ -182,7 +215,7 @@ const Employees = () => {
         </div>
         <div className="flex flex-col sm:flex-row gap-3">
           <button
-            onClick={exportEmployees}
+            onClick={() => setShowExportModal(true)}
             className="btn btn-outline hover:bg-gray-50 hover:border-gray-300 transition-colors duration-200"
           >
             <Download size={16} className="mr-2" />
@@ -201,7 +234,7 @@ const Employees = () => {
       {/* Filters */}
       <div className="card">
         <div className="card-body">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Search */}
             <div className="lg:col-span-2">
               <div className="relative">
@@ -229,7 +262,46 @@ const Employees = () => {
                 ))}
               </select>
             </div>
+
+            {/* Visa Type Filter */}
+            <div>
+              <select
+                value=""
+                onChange={(e) => {
+                  if (e.target.value) {
+                    handleVisaTypeToggle(e.target.value);
+                  }
+                }}
+                className="form-select"
+              >
+                <option value="">Filter by Visa Type</option>
+                {allVisaTypes.map(visaType => (
+                  <option key={visaType} value={visaType}>{visaType}</option>
+                ))}
+              </select>
+            </div>
           </div>
+
+          {/* Active Visa Type Filters */}
+          {filterVisaTypes.length > 0 && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              <span className="text-sm text-gray-600">Active filters:</span>
+              {filterVisaTypes.map(visaType => (
+                <span
+                  key={visaType}
+                  className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                >
+                  {visaType}
+                  <button
+                    onClick={() => handleVisaTypeToggle(visaType)}
+                    className="ml-1 text-blue-600 hover:text-blue-800"
+                  >
+                    <XCircle size={12} />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -364,6 +436,64 @@ const Employees = () => {
           onClose={handleModalClose}
           onSave={handleEmployeeSave}
         />
+      )}
+
+      {/* Export Modal */}
+      {showExportModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Export Employees</h3>
+              <button
+                onClick={() => setShowExportModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <p className="text-sm text-gray-600">
+                Select visa types to filter the export, or export all employees:
+              </p>
+
+              {/* Visa Type Selection */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Visa Types:</label>
+                <div className="space-y-2 max-h-40 overflow-y-auto">
+                  {allVisaTypes.map(visaType => (
+                    <label key={visaType} className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={filterVisaTypes.includes(visaType)}
+                        onChange={() => handleVisaTypeToggle(visaType)}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="ml-2 text-sm text-gray-700">{visaType}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Export Options */}
+              <div className="flex flex-col space-y-2">
+                <button
+                  onClick={() => exportEmployees(filterVisaTypes)}
+                  className="btn btn-primary w-full"
+                >
+                  <Download size={16} className="mr-2" />
+                  Export Selected
+                </button>
+                <button
+                  onClick={() => exportEmployees([])}
+                  className="btn btn-outline w-full"
+                >
+                  Export All Employees
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

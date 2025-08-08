@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { 
   Users, 
   Clock, 
-  DollarSign, 
+  Coins, 
   TrendingUp, 
   Eye, 
   ArrowRight, 
@@ -303,7 +303,7 @@ const LeadershipDashboard = () => {
             <div className="flex items-center">
               <div className="flex-shrink-0">
                 <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                  <DollarSign size={20} className="text-purple-600" />
+                  <Coins size={20} className="text-purple-600" />
                 </div>
               </div>
               <div className="ml-3 min-w-0 flex-1">
@@ -538,11 +538,11 @@ const LeadershipDashboard = () => {
 
         <Link to="/monthly-summaries" className="card p-4 hover:shadow-md transition-shadow cursor-pointer">
           <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                <DollarSign size={20} className="text-purple-600" />
+                          <div className="flex-shrink-0">
+                <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                  <Coins size={20} className="text-purple-600" />
+                </div>
               </div>
-            </div>
             <div className="ml-3 min-w-0 flex-1">
               <p className="text-sm font-medium text-gray-600 truncate">Total Quotation</p>
               <p className="text-xl font-semibold text-gray-900 tabular-nums truncate">{formatCurrency(overallFinancialMetrics.totalQuotationAmount)}</p>
@@ -552,11 +552,11 @@ const LeadershipDashboard = () => {
 
         <Link to="/monthly-summaries" className="card p-4 hover:shadow-md transition-shadow cursor-pointer">
           <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                <DollarSign size={20} className="text-orange-600" />
+                          <div className="flex-shrink-0">
+                <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                  <Coins size={20} className="text-orange-600" />
+                </div>
               </div>
-            </div>
             <div className="ml-3 min-w-0 flex-1">
               <p className="text-sm font-medium text-gray-600 truncate">Total Expenses</p>
               <p className="text-xl font-semibold text-gray-900 tabular-nums truncate">{formatCurrency(overallFinancialMetrics.totalExpenses)}</p>
@@ -566,11 +566,11 @@ const LeadershipDashboard = () => {
 
         <Link to="/monthly-summaries" className="card p-4 hover:shadow-md transition-shadow cursor-pointer">
           <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
-                <DollarSign size={20} className="text-yellow-600" />
+                          <div className="flex-shrink-0">
+                <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
+                  <Coins size={20} className="text-yellow-600" />
+                </div>
               </div>
-            </div>
             <div className="ml-3 min-w-0 flex-1">
               <p className="text-sm font-medium text-gray-600 truncate">Remaining Budget</p>
               <p className="text-xl font-semibold text-gray-900 tabular-nums truncate">{formatCurrency(overallFinancialMetrics.totalRemainingBudget)}</p>
