@@ -95,8 +95,8 @@ const EmployeeModal = ({ employee, onSave, onClose }) => {
         nt_rate: formData.salary_type === 'hourly' ? parseFloat(formData.hourly_wage) || 0 : 0,
         rot_rate: formData.salary_type === 'hourly' ? (parseFloat(formData.hourly_wage) || 0) * 1.25 : 0,
         hot_rate: formData.salary_type === 'hourly' ? (parseFloat(formData.hourly_wage) || 0) * 1.5 : 0,
-        visa_name: formData.visa_name,
-        visa_expiry_date: formData.visa_expiry_date,
+        visa_name: formData.visa_name || null,
+        visa_expiry_date: formData.visa_expiry_date || null,
         allowance: parseFloat(formData.allowance) || 0,
         deductions: parseFloat(formData.deductions) || 0,
         notes: formData.notes
@@ -205,7 +205,7 @@ const EmployeeModal = ({ employee, onSave, onClose }) => {
                 className="input"
                 required
               >
-                <option value="permanent">Permanent Employee</option>
+                <option value="permanent">Company Visa</option>
                 <option value="flexi visa">Flexi Visa Employee</option>
                 <option value="manpower supply">Man Power Supply Employee</option>
               </select>

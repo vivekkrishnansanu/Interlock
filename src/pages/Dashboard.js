@@ -303,7 +303,7 @@ const Dashboard = () => {
         <div className="card-body">
           <div className="flex space-x-8">
             <div>
-              <p className="text-sm text-gray-600">Permanent</p>
+              <p className="text-sm text-gray-600">Company Visa</p>
               <p className="text-xl font-bold">{stats.permanentEmployees}</p>
             </div>
             <div>
