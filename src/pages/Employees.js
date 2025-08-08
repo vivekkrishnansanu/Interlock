@@ -13,7 +13,6 @@ import {
   XCircle,
   Edit, 
   Trash2, 
-  MapPin,
   Loader2
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -24,7 +23,6 @@ import toast from 'react-hot-toast';
 const Employees = () => {
   const { userProfile } = useAuth();
   const [employees, setEmployees] = useState([]);
-  const [sites, setSites] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState(null);
@@ -39,14 +37,7 @@ const Employees = () => {
       setLoading(true);
       const { data, error } = await supabase
         .from('employees')
-        .select(`
-          *,
-          sites (
-            id,
-            name,
-            code
-          )
-        `)
+        .select('*')
         .order('name', { ascending: true });
 
       if (error) throw error;
@@ -60,26 +51,8 @@ const Employees = () => {
     }
   };
 
-  // Fetch sites from Supabase
-  const fetchSites = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('sites')
-        .select('id, name, code')
-        .order('name', { ascending: true });
-
-      if (error) throw error;
-      setSites(data || []);
-    } catch (error) {
-      console.error('Error fetching sites:', error);
-      toast.error('Failed to fetch sites');
-      setSites([]);
-    }
-  };
-
   useEffect(() => {
     fetchEmployees();
-    fetchSites();
   }, []);
 
   // Extract unique categories from real data
@@ -167,18 +140,15 @@ const Employees = () => {
 
   const exportEmployees = () => {
     const csvContent = [
-      ['Name', 'CPR', 'Designation', 'Site', 'Category', 'Employment Type', 'Work Type', 'NT Rate', 'ROT Rate', 'HOT Rate'],
+      ['Name', 'CPR', 'Designation', 'Category', 'Employment Type', 'Work Type', 'Salary Type'],
       ...sortedEmployees.map(emp => [
         emp.name,
         emp.cpr,
         emp.designation,
-        emp.sites?.name || '',
         emp.category,
-        emp.employment_type,
-        emp.work_type,
-        emp.nt_rate,
-        emp.rot_rate,
-        emp.hot_rate
+        emp.employment_type || 'permanent',
+        emp.work_type || 'workshop',
+        emp.salary_type || 'monthly'
       ])
     ].map(row => row.join(',')).join('\n');
 
@@ -285,18 +255,17 @@ const Employees = () => {
                   </th>
                   <th>CPR</th>
                   <th>Designation</th>
-                  <th>Site</th>
                   <th>Category</th>
-                  <th>NT Rate</th>
-                  <th>ROT Rate</th>
-                  <th>HOT Rate</th>
+                  <th>Employment Type</th>
+                  <th>Work Type</th>
+                  <th>Salary Type</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {sortedEmployees.length === 0 ? (
                   <tr>
-                    <td colSpan="9" className="text-center py-12">
+                    <td colSpan="8" className="text-center py-12">
                       <div className="flex flex-col items-center space-y-3">
                         <User size={48} className="text-gray-300" />
                         <p className="text-gray-500">
@@ -332,21 +301,35 @@ const Employees = () => {
                       <td className="font-mono text-sm">{employee.cpr}</td>
                       <td className="text-sm">{employee.designation}</td>
                       <td>
-                        {employee.sites ? (
-                          <div className="flex items-center gap-2">
-                            <MapPin size={14} className="text-gray-400" />
-                            <span className="text-sm">{employee.sites.name}</span>
-                          </div>
-                        ) : (
-                          <span className="text-gray-400 text-sm">-</span>
-                        )}
-                      </td>
-                      <td>
                         <span className="badge badge-outline text-xs">{employee.category}</span>
                       </td>
-                                          <td className="font-mono text-sm">BHD {employee.nt_rate}</td>
-                    <td className="font-mono text-sm">BHD {employee.rot_rate}</td>
-                    <td className="font-mono text-sm">BHD {employee.hot_rate}</td>
+                      <td>
+                        <span className={`badge text-xs ${
+                          employee.employment_type === 'permanent' 
+                            ? 'bg-blue-100 text-blue-800' 
+                            : 'bg-green-100 text-green-800'
+                        }`}>
+                          {employee.employment_type || 'permanent'}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={`badge text-xs ${
+                          employee.work_type === 'workshop' 
+                            ? 'bg-purple-100 text-purple-800' 
+                            : 'bg-orange-100 text-orange-800'
+                        }`}>
+                          {employee.work_type || 'workshop'}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={`badge text-xs ${
+                          employee.salary_type === 'monthly' 
+                            ? 'bg-indigo-100 text-indigo-800' 
+                            : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {employee.salary_type || 'monthly'}
+                        </span>
+                      </td>
                       <td>
                         <div className="flex items-center gap-2">
                           <button
@@ -378,7 +361,6 @@ const Employees = () => {
       {showModal && (
         <EmployeeModal
           employee={editingEmployee}
-          sites={sites}
           onClose={handleModalClose}
           onSave={handleEmployeeSave}
         />
