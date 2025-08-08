@@ -26,6 +26,9 @@ const Dashboard = () => {
   
   const [stats, setStats] = useState({
     totalEmployees: 0,
+    permanentEmployees: 0,
+    flexiVisaEmployees: 0,
+    manpowerSupplyEmployees: 0,
     totalSites: 0,
     totalHours: 0,
     totalPay: 0,
@@ -41,14 +44,21 @@ const Dashboard = () => {
       console.log('🔧 Fetching dashboard data...');
       setLoading(true);
       
-      // Fetch employees count
-      const { count: employeesCount, error: employeesError } = await supabase
+      // Fetch employees with employment type breakdown
+      const { data: employees, error: employeesError } = await supabase
         .from('employees')
-        .select('*', { count: 'exact', head: true });
+        .select('employment_type');
 
       if (employeesError) {
         console.log('Employees table might not exist yet:', employeesError);
       }
+
+      // Calculate employment type counts
+      const employeesData = employees || [];
+      const employeesCount = employeesData.length;
+      const permanentEmployees = employeesData.filter(emp => emp.employment_type === 'permanent').length;
+      const flexiVisaEmployees = employeesData.filter(emp => emp.employment_type === 'flexi visa').length;
+      const manpowerSupplyEmployees = employeesData.filter(emp => emp.employment_type === 'manpower supply').length;
 
       // Fetch sites count
       const { count: sitesCount, error: sitesError } = await supabase
@@ -88,6 +98,9 @@ const Dashboard = () => {
 
       setStats({
         totalEmployees: employeesCount || 0,
+        permanentEmployees: permanentEmployees || 0,
+        flexiVisaEmployees: flexiVisaEmployees || 0,
+        manpowerSupplyEmployees: manpowerSupplyEmployees || 0,
         totalSites: sitesCount || 0,
         totalHours,
         totalPay,
@@ -100,6 +113,9 @@ const Dashboard = () => {
       // Don't show error toast for empty data
       setStats({
         totalEmployees: 0,
+        permanentEmployees: 0,
+        flexiVisaEmployees: 0,
+        manpowerSupplyEmployees: 0,
         totalSites: 0,
         totalHours: 0,
         totalPay: 0,
@@ -276,10 +292,33 @@ const Dashboard = () => {
                 Manage Allowances
               </button>
             </div>
+                  </div>
+      </div>
+
+      {/* Employee Breakdown */}
+      <div className="card mb-8">
+        <div className="card-header">
+          <h3 className="text-lg font-semibold text-gray-900">Employee Breakdown</h3>
+        </div>
+        <div className="card-body">
+          <div className="flex space-x-8">
+            <div>
+              <p className="text-sm text-gray-600">Permanent</p>
+              <p className="text-xl font-bold">{stats.permanentEmployees}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">Flexi Visa</p>
+              <p className="text-xl font-bold">{stats.flexiVisaEmployees}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">Man Power Supply</p>
+              <p className="text-xl font-bold">{stats.manpowerSupplyEmployees}</p>
+            </div>
           </div>
         </div>
+      </div>
 
-        {/* Recent Activity */}
+      {/* Recent Activity */}
         <div className="card">
           <div className="card-body">
             <h3 className="text-lg font-semibold text-gray-900 tracking-tight mb-4">Recent Activity</h3>

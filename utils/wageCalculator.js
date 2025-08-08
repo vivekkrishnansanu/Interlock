@@ -28,8 +28,8 @@ const calculateDailyWage = (dailyLog, employee) => {
     const logDate = new Date(dailyLog.date);
     const dynamicRates = calculateMonthlyRates(basicPay, logDate.getMonth(), logDate.getFullYear());
     rates = dynamicRates;
-  } else if ((salaryType === 'hourly' || salaryType === 'manpower_supply') && hourlyWage > 0) {
-    // For employees with hourly pay or manpower supply (both permanent and flexi visa), use hourly wage with multipliers
+  } else if (salaryType === 'hourly' && hourlyWage > 0) {
+    // For employees with hourly pay (permanent, flexi visa, or manpower supply), use hourly wage with multipliers
     rates = {
       ntRate: hourlyWage,
       rotRate: hourlyWage * 1.25,
@@ -84,7 +84,7 @@ const calculateMonthlySummary = (dailyLogs, employee, month, year) => {
     const dynamicRates = calculateMonthlyRates(employee.basicPay, month, year);
     rates = dynamicRates;
   } else if (employee.salaryType === 'hourly' && employee.hourlyWage > 0) {
-    // For employees with hourly pay (both permanent and flexi visa), use hourly wage with multipliers
+    // For employees with hourly pay (permanent, flexi visa, or manpower supply), use hourly wage with multipliers
     rates = {
       ntRate: employee.hourlyWage,
       rotRate: employee.hourlyWage * 1.25,

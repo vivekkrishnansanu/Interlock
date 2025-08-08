@@ -66,7 +66,10 @@ const Employees = () => {
   const predefinedVisaTypes = [
     'Interlock maintenance construction',
     'Interlock services', 
-    'Hardscape contracting'
+    'Hardscape contracting',
+    'Golden Life Contracting',
+    'IMC',
+    'Bala Contracting'
   ];
   
   // Combine unique visa types from database with predefined ones

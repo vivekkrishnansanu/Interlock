@@ -44,13 +44,26 @@ const EmployeeModal = ({ employee, onSave, onClose }) => {
 
   // Update salary type when employment type changes
   const handleEmploymentTypeChange = (type) => {
+    let newSalaryType = formData.salary_type;
+    
+    // Set appropriate salary type based on employment type
+    if (type === 'permanent') {
+      // For permanent employees, keep current salary type if it's valid, otherwise default to monthly
+      newSalaryType = (formData.salary_type === 'monthly' || formData.salary_type === 'hourly') 
+        ? formData.salary_type 
+        : 'monthly';
+    } else {
+      // For flexi visa and manpower supply, always use hourly
+      newSalaryType = 'hourly';
+    }
+    
     setFormData({
       ...formData,
       employment_type: type,
-      // Keep current salary type if it's valid for the new employment type
-      salary_type: formData.salary_type,
-      basic_pay: type === 'permanent' ? formData.basic_pay : 0,
-      hourly_wage: type === 'flexi visa' ? formData.hourly_wage : 0
+      salary_type: newSalaryType,
+      // Clear pay fields based on new employment type
+      basic_pay: type === 'permanent' && newSalaryType === 'monthly' ? formData.basic_pay : 0,
+      hourly_wage: (type === 'permanent' && newSalaryType === 'hourly') || type === 'flexi visa' || type === 'manpower supply' ? formData.hourly_wage : 0
     });
   };
 
@@ -194,6 +207,7 @@ const EmployeeModal = ({ employee, onSave, onClose }) => {
               >
                 <option value="permanent">Permanent Employee</option>
                 <option value="flexi visa">Flexi Visa Employee</option>
+                <option value="manpower supply">Man Power Supply Employee</option>
               </select>
             </div>
             <div className="form-group">
@@ -206,10 +220,16 @@ const EmployeeModal = ({ employee, onSave, onClose }) => {
                 onChange={(e) => handleSalaryTypeChange(e.target.value)}
                 className="input"
                 required
+                disabled={formData.employment_type === 'flexi visa' || formData.employment_type === 'manpower supply'}
               >
-                <option value="monthly">Monthly Salary</option>
-                <option value="hourly">Hourly Wage</option>
-                <option value="manpower_supply">Manpower Supply</option>
+                {formData.employment_type === 'permanent' ? (
+                  <>
+                    <option value="monthly">Monthly Salary</option>
+                    <option value="hourly">Hourly Wage</option>
+                  </>
+                ) : (
+                  <option value="hourly">Hourly Wage</option>
+                )}
               </select>
             </div>
           </div>
@@ -253,7 +273,7 @@ const EmployeeModal = ({ employee, onSave, onClose }) => {
                     required
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    Per hour wage for {formData.employment_type === 'permanent' ? 'permanent' : 'flexi visa'} employees
+                    Per hour wage for {formData.employment_type === 'permanent' ? 'permanent' : formData.employment_type} employees
                   </p>
                 </div>
               )}
@@ -275,6 +295,9 @@ const EmployeeModal = ({ employee, onSave, onClose }) => {
                   <option value="Interlock maintenance construction">Interlock maintenance construction</option>
                   <option value="Interlock services">Interlock services</option>
                   <option value="Hardscape contracting">Hardscape contracting</option>
+                  <option value="Golden Life Contracting">Golden Life Contracting</option>
+                  <option value="IMC">IMC</option>
+                  <option value="Bala Contracting">Bala Contracting</option>
                 </select>
               </div>
               <div className="form-group">
