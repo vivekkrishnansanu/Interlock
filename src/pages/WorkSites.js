@@ -32,10 +32,15 @@ const WorkSites = () => {
   const [sortBy, setSortBy] = useState('date');
   const [sortOrder, setSortOrder] = useState('desc');
 
-  // Fetch data from Supabase
+  // Fetch data from Supabase with role-based filtering
   const fetchData = async () => {
     try {
       setLoading(true);
+      console.log('🔍 Fetching data for user:', userProfile?.email, 'Role:', userProfile?.role);
+      
+      // For demo users, show appropriate data based on role
+      const demoEmails = ['leadership@interlock.com', 'admin@interlock.com', 'viewer@interlock.com'];
+      const isDemoUser = demoEmails.includes(userProfile?.email);
       
       // Fetch employees
       const { data: employeesData, error: employeesError } = await supabase
@@ -65,13 +70,29 @@ const WorkSites = () => {
 
       if (logsError) throw logsError;
 
-      // Fetch sites
-      const { data: sitesData, error: sitesError } = await supabase
+      // Fetch sites with role-based filtering
+      let sitesQuery = supabase
         .from('sites')
         .select('id, name, code')
         .order('name', { ascending: true });
 
+      if (isDemoUser && userProfile?.role === 'leadership') {
+        console.log('🔧 Leadership user - filtering out demo sites...');
+        sitesQuery = sitesQuery
+          .not('name', 'ilike', '%test%')
+          .not('name', 'ilike', '%demo%')
+          .not('name', 'ilike', '%dummy%');
+      }
+
+      const { data: sitesData, error: sitesError } = await sitesQuery;
+
       if (sitesError) throw sitesError;
+
+      console.log('✅ Data fetched:', {
+        employees: employeesData?.length || 0,
+        logs: logsData?.length || 0,
+        sites: sitesData?.length || 0
+      });
 
       setEmployees(employeesData || []);
       setDailyLogs(logsData || []);

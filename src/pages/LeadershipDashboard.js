@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
   Users, 
@@ -18,13 +18,16 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useMonth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
+import toast from 'react-hot-toast';
 
 const LeadershipDashboard = () => {
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const navigate = useNavigate();
   const { selectedMonth, isCurrentMonth, getSelectedMonthName } = useMonth();
   const [viewMode, setViewMode] = useState('leadership'); // leadership, site-detail
   const [selectedSite, setSelectedSite] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   // Calculate days remaining for project completion
   const calculateDaysRemaining = (site) => {
@@ -36,128 +39,146 @@ const LeadershipDashboard = () => {
   };
 
   const [leadershipStats, setLeadershipStats] = useState({
-    totalSites: 5,
-    totalEmployees: 24,
-    totalExpenses: 45680,
-    totalHours: 3840,
-    averageCostPerHour: 11.89,
-    sitesOverview: [
-      {
-        id: 'site-1',
-        name: 'Site A - Main Office',
-        code: 'SITE-A',
-        status: 'active',
-        employeeCount: 8,
-        totalHours: 128, // 2 days * 8 employees * 8 hours
-        totalExpenses: 1520, // Much lower for early month
-        quotationAmount: 20000,
-        plannedHours: 800,
-        actualHours: 128,
-        plannedMilestones: 10,
-        completedMilestones: 2, // Only 2 days into month
-        projectStartDate: '2025-08-01',
-        expectedEndDate: '2026-01-31', // ~150 days remaining
-        clientName: 'ABC Corporation',
-        clientContact: '+973 1234 5678',
-        clientEmail: 'project@abccorp.com',
-        riskLevel: 'low'
-      },
-      {
-        id: 'site-2',
-        name: 'Site B - Workshop',
-        code: 'SITE-B',
-        status: 'active',
-        employeeCount: 6,
-        totalHours: 96, // 2 days * 6 employees * 8 hours
-        totalExpenses: 1280, // Much lower for early month
-        quotationAmount: 15000,
-        plannedHours: 520,
-        actualHours: 96,
-        plannedMilestones: 8,
-        completedMilestones: 1, // Only 2 days into month
-        projectStartDate: '2025-08-01',
-        expectedEndDate: '2025-12-31', // ~120 days remaining
-        clientName: 'XYZ Industries',
-        clientContact: '+973 9876 5432',
-        clientEmail: 'manager@xyzind.com',
-        riskLevel: 'low'
-      },
-      {
-        id: 'site-3',
-        name: 'Site C - Construction',
-        code: 'SITE-C',
-        status: 'active',
-        employeeCount: 5,
-        totalHours: 80, // 2 days * 5 employees * 8 hours
-        totalExpenses: 960, // Much lower for early month
-        quotationAmount: 12000,
-        plannedHours: 600,
-        actualHours: 80,
-        plannedMilestones: 12,
-        completedMilestones: 1, // Only 2 days into month
-        projectStartDate: '2025-08-01',
-        expectedEndDate: '2026-02-28', // ~180 days remaining
-        clientName: 'DEF Construction',
-        clientContact: '+973 5555 1234',
-        clientEmail: 'site@defconstruction.com',
-        riskLevel: 'medium'
-      },
-      {
-        id: 'site-4',
-        name: 'Site D - Warehouse',
-        code: 'SITE-D',
-        status: 'active',
-        employeeCount: 3,
-        totalHours: 48, // 2 days * 3 employees * 8 hours
-        totalExpenses: 560, // Much lower for early month
-        quotationAmount: 7000,
-        plannedHours: 250,
-        actualHours: 48,
-        plannedMilestones: 6,
-        completedMilestones: 1, // Only 2 days into month
-        projectStartDate: '2025-07-15', // Started earlier
-        expectedEndDate: '2025-08-15', // Overdue by 15 days
-        clientName: 'GHI Logistics',
-        clientContact: '+973 7777 8888',
-        clientEmail: 'warehouse@ghilogistics.com',
-        riskLevel: 'high' // Changed to high risk due to being overdue
-      },
-      {
-        id: 'site-5',
-        name: 'Site E - Maintenance',
-        code: 'SITE-E',
-        status: 'active',
-        employeeCount: 2,
-        totalHours: 32, // 2 days * 2 employees * 8 hours
-        totalExpenses: 248, // Much lower for early month
-        quotationAmount: 3000,
-        plannedHours: 180,
-        actualHours: 32,
-        plannedMilestones: 4,
-        completedMilestones: 1, // Only 2 days into month
-        projectStartDate: '2025-08-01',
-        expectedEndDate: '2025-12-31', // ~120 days remaining
-        clientName: 'JKL Services',
-        clientContact: '+973 9999 0000',
-        clientEmail: 'maintenance@jklservices.com',
-        riskLevel: 'low'
-      }
-    ],
-    recentAlerts: [
-      { id: 1, type: 'info', message: 'Site A project started successfully', site: 'SITE-A', time: '2 hours ago' },
-      { id: 2, type: 'success', message: 'Site B team mobilized and ready', site: 'SITE-B', time: '4 hours ago' },
-      { id: 3, type: 'warning', message: 'Site C awaiting material delivery', site: 'SITE-C', time: '6 hours ago' },
-      { id: 4, type: 'info', message: 'Site D equipment setup completed', site: 'SITE-D', time: '8 hours ago' },
-      { id: 5, type: 'success', message: 'Site E maintenance schedule confirmed', site: 'SITE-E', time: '1 day ago' }
-    ],
+    totalSites: 0,
+    totalEmployees: 0,
+    totalExpenses: 0,
+    totalHours: 0,
+    averageCostPerHour: 0,
+    sitesOverview: [],
+    recentAlerts: [],
     performanceMetrics: {
-      overallEfficiency: 15.2, // Much lower for early month
-      costVariance: 2.3, // Positive variance for early stage
-      scheduleVariance: -1.8, // Slightly behind schedule
-      qualityScore: 98.2, // High quality for early stage
-      highRiskProjects: 1 // Only one medium risk project
+      overallEfficiency: 0,
+      costVariance: 0,
+      scheduleVariance: 0,
+      qualityScore: 0,
+      highRiskProjects: 0
     }
   });
+
+  // Fetch real data from database
+  const fetchLeadershipData = async () => {
+    try {
+      setLoading(true);
+      console.log('🔍 Fetching leadership data for user:', userProfile?.email, 'Role:', userProfile?.role);
+      
+      // For demo users, show appropriate data based on role
+      const demoEmails = ['leadership@interlock.com', 'admin@interlock.com', 'viewer@interlock.com'];
+      const isDemoUser = demoEmails.includes(userProfile?.email);
+      
+      // Fetch sites with role-based filtering
+      let sitesQuery = supabase
+        .from('sites')
+        .select('*')
+        .order('name', { ascending: true });
+
+      if (isDemoUser && userProfile?.role === 'leadership') {
+        console.log('🔧 Leadership user - filtering out demo sites...');
+        sitesQuery = sitesQuery
+          .not('name', 'ilike', '%test%')
+          .not('name', 'ilike', '%demo%')
+          .not('name', 'ilike', '%dummy%');
+      }
+
+      const { data: sites, error: sitesError } = await sitesQuery;
+      if (sitesError) throw sitesError;
+
+      // Fetch employees
+      const { data: employees, error: employeesError } = await supabase
+        .from('employees')
+        .select('*')
+        .order('name', { ascending: true });
+      if (employeesError) throw employeesError;
+
+      // Fetch daily logs for current month
+      const { data: dailyLogs, error: logsError } = await supabase
+        .from('daily_logs')
+        .select('*')
+        .gte('date', `${selectedMonth.year}-${String(selectedMonth.month).padStart(2, '0')}-01`)
+        .lt('date', `${selectedMonth.year}-${String(selectedMonth.month + 1).padStart(2, '0')}-01`);
+      if (logsError) throw logsError;
+
+      // Transform sites data for dashboard
+      const sitesOverview = sites.map(site => ({
+        id: site.id,
+        name: site.name,
+        code: site.code,
+        status: site.status || 'active',
+        employeeCount: employees.filter(emp => emp.site_id === site.id).length,
+        totalHours: dailyLogs
+          .filter(log => log.site_id === site.id)
+          .reduce((sum, log) => sum + (log.nt_hours || 0) + (log.rot_hours || 0) + (log.hot_hours || 0), 0),
+        totalExpenses: dailyLogs
+          .filter(log => log.site_id === site.id)
+          .reduce((sum, log) => {
+            const employee = employees.find(emp => emp.id === log.employee_id);
+            if (!employee) return sum;
+            
+            const ntPay = (log.nt_hours || 0) * (employee.nt_rate || 0);
+            const rotPay = (log.rot_hours || 0) * (employee.rot_rate || 0);
+            const hotPay = (log.hot_hours || 0) * (employee.hot_rate || 0);
+            return sum + ntPay + rotPay + hotPay;
+          }, 0),
+        quotationAmount: site.quotation_amount || 0,
+        projectStartDate: site.project_start_date || new Date().toISOString().split('T')[0],
+        expectedEndDate: site.expected_end_date || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        clientName: site.client_name || 'Client Not Specified',
+        clientContact: site.client_contact || 'Contact Not Specified',
+        clientEmail: site.client_email || 'Email Not Specified',
+        riskLevel: 'low' // Default risk level
+      }));
+
+      // Calculate overall metrics
+      const totalSites = sites.length;
+      const totalEmployees = employees.length;
+      const totalExpenses = sitesOverview.reduce((sum, site) => sum + site.totalExpenses, 0);
+      const totalHours = sitesOverview.reduce((sum, site) => sum + site.totalHours, 0);
+      const averageCostPerHour = totalHours > 0 ? totalExpenses / totalHours : 0;
+
+      // Generate recent alerts based on real data
+      const recentAlerts = [];
+      if (sites.length > 0) {
+        recentAlerts.push({ 
+          id: 1, 
+          type: 'info', 
+          message: `${sites[0].name} project started successfully`, 
+          site: sites[0].code, 
+          time: '2 hours ago' 
+        });
+      }
+
+      console.log('✅ Leadership data fetched:', {
+        sites: sites.length,
+        employees: employees.length,
+        logs: dailyLogs.length
+      });
+
+      setLeadershipStats({
+        totalSites,
+        totalEmployees,
+        totalExpenses,
+        totalHours,
+        averageCostPerHour,
+        sitesOverview,
+        recentAlerts,
+        performanceMetrics: {
+          overallEfficiency: totalHours > 0 ? (totalHours / (totalEmployees * 8 * 30)) * 100 : 0,
+          costVariance: 0,
+          scheduleVariance: 0,
+          qualityScore: 100,
+          highRiskProjects: sitesOverview.filter(site => site.riskLevel === 'high').length
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching leadership data:', error);
+      toast.error('Failed to fetch dashboard data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLeadershipData();
+  }, [userProfile, selectedMonth]);
 
   // Calculate metrics for all sites
   const sitesWithMetrics = leadershipStats.sitesOverview.map(site => ({
@@ -435,6 +456,17 @@ const LeadershipDashboard = () => {
               </div>
             </div>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="flex flex-col items-center space-y-4">
+          <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-sm text-gray-600 font-medium">Loading leadership dashboard...</p>
         </div>
       </div>
     );
