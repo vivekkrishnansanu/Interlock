@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+import { calculateDailyWage, calculateEmployeeMonthlySummary } from '../utils/wageCalculator';
 import toast from 'react-hot-toast';
 
 const WorkSites = () => {
@@ -50,7 +51,7 @@ const WorkSites = () => {
 
       if (employeesError) throw employeesError;
 
-      // Fetch daily logs
+      // Fetch daily logs with employee rates and allowances
       const { data: logsData, error: logsError } = await supabase
         .from('daily_logs')
         .select(`
@@ -58,7 +59,15 @@ const WorkSites = () => {
           employees (
             id,
             name,
-            designation
+            designation,
+            nt_rate,
+            rot_rate,
+            hot_rate,
+            hourly_wage,
+            basic_pay,
+            employment_type,
+            salary_type,
+            allowance
           ),
           sites (
             id,
@@ -94,8 +103,84 @@ const WorkSites = () => {
         sites: sitesData?.length || 0
       });
 
+      // Group multiple entries per employee per day and calculate combined totals
+      const groupedLogs = {};
+      
+      (logsData || []).forEach(log => {
+        const key = `${log.employee_id}-${log.date}`;
+        
+        if (!groupedLogs[key]) {
+          groupedLogs[key] = {
+            id: log.id, // Use first entry's ID
+            date: log.date,
+            employee_id: log.employee_id,
+            employees: log.employees,
+            sites: log.sites, // Use first entry's site
+            nt_hours: 0,
+            rot_hours: 0,
+            hot_hours: 0,
+            is_holiday: log.is_holiday || false,
+            is_friday: log.is_friday || false,
+            entries: []
+          };
+        }
+        
+        // Sum up hours from all entries for this employee on this date
+        groupedLogs[key].nt_hours += log.nt_hours || 0;
+        groupedLogs[key].rot_hours += log.rot_hours || 0;
+        groupedLogs[key].hot_hours += log.hot_hours || 0;
+        
+        // Keep track of individual entries for detailed view
+        groupedLogs[key].entries.push({
+          site: log.sites?.code || log.sites?.name || 'Unknown',
+          nt_hours: log.nt_hours || 0,
+          rot_hours: log.rot_hours || 0,
+          hot_hours: log.hot_hours || 0
+        });
+      });
+
+      // Calculate total pay for each grouped daily log and flatten structure
+      const logsWithPay = Object.values(groupedLogs).map(log => {
+        let totalPay = 0;
+        if (log.employees) {
+          try {
+            const wageCalculation = calculateDailyWage(log, log.employees);
+            totalPay = wageCalculation.totalPay;
+          } catch (error) {
+            console.error('Error calculating wage for log:', log.date, error);
+            totalPay = 0;
+          }
+        }
+        
+        return {
+          ...log,
+          // Flatten employee data
+          employeeName: log.employees?.name || 'Unknown Employee',
+          employeeDesignation: log.employees?.designation || '',
+          // Flatten hours data (now combined from multiple entries)
+          ntHours: log.nt_hours || 0,
+          notHours: log.rot_hours || 0, // ROT hours mapped to notHours for display
+          hotHours: log.hot_hours || 0,
+          adjustmentHours: 0, // No adjustment hours in our data
+          // Flatten site data (show multiple sites if applicable)
+          siteRef: log.entries.length > 1 
+            ? `${log.entries.length} sites` 
+            : (log.sites?.code || log.sites?.name || 'Unknown Site'),
+          siteName: log.entries.length > 1
+            ? log.entries.map(e => e.site).join(', ')
+            : (log.sites?.name || 'Unknown Site'),
+          // Add calculated pay
+          totalPay: totalPay,
+          // Add day type flags
+          isHoliday: log.is_holiday || false,
+          isFriday: log.is_friday || false,
+          // Add hours worked
+          hours_worked: (log.nt_hours || 0) + (log.rot_hours || 0) + (log.hot_hours || 0)
+        };
+      });
+
       setEmployees(employeesData || []);
-      setDailyLogs(logsData || []);
+      setDailyLogs(logsWithPay || []);
       setSites(sitesData || []);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -201,7 +286,7 @@ const WorkSites = () => {
         log.nt_hours,
         log.rot_hours,
         log.hot_hours,
-        log.total_pay
+        log.totalPay
       ])
     ].map(row => row.join(',')).join('\n');
 
@@ -215,9 +300,57 @@ const WorkSites = () => {
   };
 
   // Calculate summary statistics
-  const totalHours = sortedLogs.reduce((sum, log) => sum + (log.hours_worked || 0), 0);
-  const totalPay = sortedLogs.reduce((sum, log) => sum + (log.total_pay || 0), 0);
-  const totalLogs = sortedLogs.length;
+  const calculateSummaryStats = () => {
+    if (dailyLogs.length === 0) {
+      return { totalHours: 0, totalPay: 0, workDays: 0 };
+    }
+
+    // Group logs by employee to calculate monthly totals with allowances
+    const employeeGroups = {};
+    dailyLogs.forEach(log => {
+      const employeeId = log.employee_id || log.id; // fallback for mock data
+      if (!employeeGroups[employeeId]) {
+        employeeGroups[employeeId] = {
+          employee: log.employees || { name: log.employeeName },
+          logs: []
+        };
+      }
+      employeeGroups[employeeId].logs.push(log);
+    });
+
+    let totalHours = 0;
+    let totalPay = 0;
+    let uniqueDates = new Set();
+
+    Object.values(employeeGroups).forEach(({ employee, logs }) => {
+      if (employee && logs.length > 0) {
+        // Use unified calculation that includes allowances
+        const monthlySummary = calculateEmployeeMonthlySummary(logs, employee);
+        totalPay += monthlySummary.totalPay;
+        totalHours += monthlySummary.totalHours;
+        
+        // Count unique dates
+        logs.forEach(log => uniqueDates.add(log.date));
+      } else {
+        // Fallback for logs without employee data
+        logs.forEach(log => {
+          totalHours += (log.ntHours || log.nt_hours || 0) + 
+                       (log.notHours || log.rot_hours || 0) + 
+                       (log.hotHours || log.hot_hours || 0);
+          totalPay += log.totalPay || 0;
+          uniqueDates.add(log.date);
+        });
+      }
+    });
+
+    return {
+      totalHours: totalHours,
+      totalPay: totalPay,
+      workDays: uniqueDates.size
+    };
+  };
+
+  const summaryStats = calculateSummaryStats();
 
   if (loading) {
     return (
@@ -263,7 +396,7 @@ const WorkSites = () => {
               </div>
               <div>
                 <p className="text-sm text-gray-600">Total Hours</p>
-                <p className="text-2xl font-bold text-gray-900">{totalHours.toFixed(1)}</p>
+                <p className="text-2xl font-bold text-gray-900">{summaryStats.totalHours.toFixed(1)}</p>
               </div>
             </div>
           </div>
@@ -277,7 +410,7 @@ const WorkSites = () => {
               </div>
               <div>
                 <p className="text-sm text-gray-600">Total Pay</p>
-                <p className="text-2xl font-bold text-gray-900">BHD {totalPay.toFixed(2)}</p>
+                <p className="text-2xl font-bold text-gray-900">BHD {summaryStats.totalPay.toFixed(2)}</p>
               </div>
             </div>
           </div>
@@ -290,8 +423,8 @@ const WorkSites = () => {
                 <Calendar size={20} className="text-purple-600" />
               </div>
               <div>
-                <p className="text-sm text-gray-600">Log Entries</p>
-                <p className="text-2xl font-bold text-gray-900">{totalLogs}</p>
+                <p className="text-sm text-gray-600">Work Days</p>
+                <p className="text-2xl font-bold text-gray-900">{summaryStats.workDays}</p>
               </div>
             </div>
           </div>
@@ -447,7 +580,7 @@ const WorkSites = () => {
                       <td>
                         <div className="flex items-center gap-sm">
                           <MapPin size={14} className="text-gray-400" />
-                          <span>{log.sites?.name}</span>
+                          <span>{log.siteRef}</span>
                         </div>
                       </td>
                       <td className="font-mono">{log.hours_worked}</td>
@@ -455,7 +588,7 @@ const WorkSites = () => {
                       <td className="font-mono">{log.rot_hours}</td>
                       <td className="font-mono">{log.hot_hours}</td>
                       <td className="font-mono font-medium text-green-600">
-                        BHD {log.total_pay?.toFixed(2)}
+                        BHD {log.totalPay?.toFixed(2)}
                       </td>
                       <td>
                         <div className="flex items-center gap-sm">
@@ -573,4 +706,4 @@ const WorkSites = () => {
   );
 };
 
-export default WorkSites; 
+export default WorkSites;

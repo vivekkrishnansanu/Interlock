@@ -36,7 +36,7 @@ const Layout = () => {
     { name: 'Monthly Summaries', href: '/monthly-summaries', icon: BarChart3, role: 'viewer' },
     { name: 'Sites', href: '/sites', icon: Building, role: 'admin' },
     { name: 'Work Sites', href: '/work-sites', icon: MapPin, role: 'viewer' },
-    { name: 'My Timecard', href: '/timecard', icon: Clock, role: 'viewer' },
+    { name: 'Timecard', href: '/timecard', icon: Clock, role: 'viewer' },
     { name: 'Salary Advances', href: '/salary-advances', icon: CreditCard, role: 'viewer' },
     { name: 'Allowances', href: '/allowances', icon: Gift, role: 'admin' },
     { name: 'User Management', href: '/users', icon: Shield, role: 'admin' },

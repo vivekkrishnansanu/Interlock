@@ -14,12 +14,15 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useMonth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+import { calculateEmployeeMonthlySummary } from '../utils/wageCalculator';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 
 const Dashboard = () => {
   const { userProfile } = useAuth();
+  const { selectedMonth } = useMonth();
   const navigate = useNavigate();
   
   console.log('🔧 Dashboard rendering, userProfile:', userProfile);
@@ -69,7 +72,18 @@ const Dashboard = () => {
         console.log('Sites table might not exist yet:', sitesError);
       }
 
-      // Fetch recent daily logs
+      // Get selected month date range (selectedMonth.month is 1-based, Date constructor expects 0-based)
+      // Use UTC to avoid timezone issues
+      const firstDay = new Date(Date.UTC(selectedMonth.year, selectedMonth.month - 1, 1)).toISOString().split('T')[0];
+      const lastDay = new Date(Date.UTC(selectedMonth.year, selectedMonth.month, 0)).toISOString().split('T')[0];
+      
+      console.log(`🗓️ Dashboard filtering for ${selectedMonth.year}-${selectedMonth.month}:`, {
+        firstDay,
+        lastDay,
+        selectedMonth
+      });
+
+      // Fetch selected month's daily logs with employee rates and allowances
       const { data: recentLogs, error: logsError } = await supabase
         .from('daily_logs')
         .select(`
@@ -77,7 +91,15 @@ const Dashboard = () => {
           employees (
             id,
             name,
-            designation
+            designation,
+            nt_rate,
+            rot_rate,
+            hot_rate,
+            hourly_wage,
+            basic_pay,
+            employment_type,
+            salary_type,
+            allowance
           ),
           sites (
             id,
@@ -85,16 +107,42 @@ const Dashboard = () => {
             code
           )
         `)
-        .order('date', { ascending: false })
-        .limit(10);
+        .gte('date', firstDay)
+        .lte('date', lastDay)
+        .order('date', { ascending: false });
 
       if (logsError) {
         console.log('Daily logs table might not exist yet:', logsError);
       }
 
-      // Calculate totals from logs
-      const totalHours = recentLogs?.reduce((sum, log) => sum + (log.hours_worked || 0), 0) || 0;
-      const totalPay = recentLogs?.reduce((sum, log) => sum + (log.total_pay || 0), 0) || 0;
+      // Calculate totals from logs using proper wage calculation
+      const totalHours = recentLogs?.reduce((sum, log) => 
+        sum + ((log.nt_hours || 0) + (log.rot_hours || 0) + (log.hot_hours || 0)), 0) || 0;
+      
+      // Calculate total pay properly with allowances
+      let totalPay = 0;
+      if (recentLogs && recentLogs.length > 0) {
+        // Group by employee to calculate monthly totals with allowances
+        const employeeGroups = {};
+        recentLogs.forEach(log => {
+          const employeeId = log.employee_id;
+          if (!employeeGroups[employeeId]) {
+            employeeGroups[employeeId] = {
+              employee: log.employees,
+              logs: []
+            };
+          }
+          employeeGroups[employeeId].logs.push(log);
+        });
+
+        // Use the same calculation logic as other pages
+        Object.values(employeeGroups).forEach(({ employee, logs }) => {
+          if (employee && logs.length > 0) {
+            const monthlySummary = calculateEmployeeMonthlySummary(logs, employee);
+            totalPay += monthlySummary.totalPay;
+          }
+        });
+      }
 
       setStats({
         totalEmployees: employeesCount || 0,
@@ -130,7 +178,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchDashboardData();
-  }, []);
+  }, [selectedMonth]);
 
   if (loading) {
     console.log('🔧 Dashboard is loading...');

@@ -4,13 +4,14 @@ import {
   Download, 
   Search, 
   Filter, 
-  DollarSign, 
+  Coins, 
   Clock, 
   User,
   TrendingUp
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+import { calculateDailyWage, calculateEmployeeMonthlySummary } from '../utils/wageCalculator';
 import toast from 'react-hot-toast';
 
 const MonthlySummaries = () => {
@@ -38,9 +39,13 @@ const MonthlySummaries = () => {
             category,
             employment_type,
             work_type,
+            salary_type,
             nt_rate,
             rot_rate,
-            hot_rate
+            hot_rate,
+            hourly_wage,
+            basic_pay,
+            allowance
           ),
           sites (
             id,
@@ -67,11 +72,31 @@ const MonthlySummaries = () => {
   const processLogsIntoSummaries = (logs) => {
     const monthlyGroups = {};
     
+    // First, group logs by month and employee
+    const employeeLogsByMonth = {};
+    
     logs.forEach(log => {
       const date = new Date(log.date);
       const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      const employeeId = log.employee_id;
+      const groupKey = `${monthKey}-${employeeId}`;
       
+      if (!employeeLogsByMonth[groupKey]) {
+        employeeLogsByMonth[groupKey] = {
+          monthKey,
+          employeeId,
+          employee: log.employees,
+          logs: []
+        };
+      }
+      
+      employeeLogsByMonth[groupKey].logs.push(log);
+    });
+    
+    // Now calculate monthly summaries for each employee using the unified function
+    Object.values(employeeLogsByMonth).forEach(({ monthKey, employeeId, employee, logs }) => {
       if (!monthlyGroups[monthKey]) {
+        const date = new Date(logs[0].date);
         monthlyGroups[monthKey] = {
           month: monthKey,
           year: date.getFullYear(),
@@ -83,40 +108,32 @@ const MonthlySummaries = () => {
         };
       }
       
-      const employeeId = log.employee_id;
-      if (!monthlyGroups[monthKey].employees[employeeId]) {
-        monthlyGroups[monthKey].employees[employeeId] = {
-          id: employeeId,
-          name: log.employees?.name,
-          designation: log.employees?.designation,
-          category: log.employees?.category,
-          employment_type: log.employees?.employment_type,
-          work_type: log.employees?.work_type,
-          nt_rate: log.employees?.nt_rate,
-          rot_rate: log.employees?.rot_rate,
-          hot_rate: log.employees?.hot_rate,
-          totalHours: 0,
-          ntHours: 0,
-          rotHours: 0,
-          hotHours: 0,
-          totalPay: 0,
-          workDays: 0
-        };
-      }
+      // Use the unified calculation function
+      const monthlySummary = calculateEmployeeMonthlySummary(logs, employee);
       
-      // Add hours and pay
-      const employee = monthlyGroups[monthKey].employees[employeeId];
-      employee.ntHours += log.nt_hours || 0;
-      employee.rotHours += log.rot_hours || 0;
-      employee.hotHours += log.hot_hours || 0;
-      employee.totalHours += (log.nt_hours || 0) + (log.rot_hours || 0) + (log.hot_hours || 0);
-      employee.totalPay += log.total_pay || 0;
-      employee.workDays += 1;
+      monthlyGroups[monthKey].employees[employeeId] = {
+        id: employeeId,
+        name: employee?.name,
+        designation: employee?.designation,
+        category: employee?.category,
+        employment_type: employee?.employment_type,
+        work_type: employee?.work_type,
+        nt_rate: employee?.nt_rate,
+        rot_rate: employee?.rot_rate,
+        hot_rate: employee?.hot_rate,
+        allowance: employee?.allowance || 0,
+        totalHours: monthlySummary.totalHours,
+        ntHours: monthlySummary.ntHours,
+        rotHours: monthlySummary.rotHours,
+        hotHours: monthlySummary.hotHours,
+        totalPay: monthlySummary.totalPay, // This includes allowance
+        workDays: monthlySummary.workDays
+      };
       
       // Update monthly totals
-      monthlyGroups[monthKey].totalHours += (log.nt_hours || 0) + (log.rot_hours || 0) + (log.hot_hours || 0);
-      monthlyGroups[monthKey].totalPay += log.total_pay || 0;
-      monthlyGroups[monthKey].totalLogs += 1;
+      monthlyGroups[monthKey].totalHours += monthlySummary.totalHours;
+      monthlyGroups[monthKey].totalPay += monthlySummary.totalPay;
+      monthlyGroups[monthKey].totalLogs += logs.length;
     });
     
     // Convert to array format
