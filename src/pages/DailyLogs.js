@@ -27,9 +27,9 @@ import { supabase } from '../lib/supabase';
 import { calculateDailyWage, calculateEmployeeMonthlySummary } from '../utils/wageCalculator';
 
 const DailyLogs = () => {
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const { selectedMonth, isCurrentMonth, getSelectedMonthName } = useMonth();
-  const isEditor = ['admin', 'editor'].includes(user?.role);
+  const isEditor = ['admin', 'editor'].includes(userProfile?.role);
   const [employees, setEmployees] = useState([]);
   const [dailyLogs, setDailyLogs] = useState([]);
   const [loading, setLoading] = useState(true);
