@@ -302,21 +302,23 @@ const DailyLogs = () => {
     }
 
     try {
-      const newLog = {
-        id: Date.now(),
-        date: selectedDate,
-        employeeName: selectedEmployeeInfo.name,
-        ntHours,
-        notHours,
-        hotHours,
-        adjustmentHours,
-        siteRef: sites.find(s => s.id === selectedSite)?.code || selectedSite,
-        isHoliday,
-        isFriday,
-        totalPay: calculations?.totalPay || 0
-      };
+      // Save to database
+      const { data, error } = await supabase
+        .from('daily_logs')
+        .insert({
+          employee_id: selectedEmployee,
+          date: selectedDate,
+          nt_hours: ntHours,
+          rot_hours: notHours, // ROT hours mapped from notHours
+          hot_hours: hotHours,
+          site_id: selectedSite,
+          is_holiday: isHoliday,
+          is_friday: isFriday,
+          created_at: new Date().toISOString()
+        });
 
-      setDailyLogs(prev => [newLog, ...prev]);
+      if (error) throw error;
+
       toast.success('Daily log added successfully');
       
       // Reset form
@@ -331,6 +333,9 @@ const DailyLogs = () => {
       setIsFriday(false);
       setCalculations(null);
       setShowForm(false);
+
+      // Refresh the data
+      await fetchDailyLogs();
     } catch (error) {
       console.error('Error adding daily log:', error);
       toast.error('Failed to add daily log');
@@ -361,39 +366,26 @@ const DailyLogs = () => {
     }
 
     try {
-      const newLogs = selectedEmployees.map(employeeId => {
-        const employee = employees.find(emp => emp.id === employeeId);
-        
-        // Create a daily log object for the wage calculator
-        const dailyLog = {
-          date: selectedDate,
-          ntHours: bulkNtHours || 0,
-          rotHours: bulkNotHours || 0,
-          hotHours: bulkHotHours || 0,
-          isHoliday,
-          isFriday
-        };
-        
-        // Calculate wages using the wage calculator
-        const wageCalculation = calculateDailyWage(dailyLog, employee);
-        const totalPay = wageCalculation.totalPay;
+      // Create array of entries to insert
+      const logsToInsert = selectedEmployees.map(employeeId => ({
+        employee_id: employeeId,
+        date: selectedDate,
+        nt_hours: bulkNtHours,
+        rot_hours: bulkNotHours, // ROT hours mapped from bulkNotHours
+        hot_hours: bulkHotHours,
+        site_id: selectedSite,
+        is_holiday: isHoliday,
+        is_friday: isFriday,
+        created_at: new Date().toISOString()
+      }));
 
-        return {
-          id: Date.now() + Math.random(),
-          date: selectedDate,
-          employeeName: employee.name,
-          ntHours: bulkNtHours,
-          notHours: bulkNotHours,
-          hotHours: bulkHotHours,
-          adjustmentHours: bulkAdjustmentHours,
-          siteRef: sites.find(s => s.id === selectedSite)?.code || selectedSite,
-          isHoliday,
-          isFriday,
-          totalPay
-        };
-      });
+      // Save to database
+      const { data, error } = await supabase
+        .from('daily_logs')
+        .insert(logsToInsert);
 
-      setDailyLogs(prev => [...newLogs, ...prev]);
+      if (error) throw error;
+
       toast.success(`Added daily logs for ${selectedEmployees.length} employees`);
       
       // Reset form
@@ -404,6 +396,9 @@ const DailyLogs = () => {
       setBulkAdjustmentHours(0);
       setSelectedSite('');
       setShowBulkEntry(false);
+
+      // Refresh the data
+      await fetchDailyLogs();
     } catch (error) {
       console.error('Error adding bulk daily logs:', error);
       toast.error('Failed to add daily logs');
