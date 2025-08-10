@@ -8,7 +8,6 @@ import {
   Upload,
   User,
   Save,
-  Calculator,
   Clock,
   DollarSign,
   Briefcase,
@@ -17,14 +16,18 @@ import {
   MapPin,
   Building,
   Users,
-  Eye
+  Eye,
+  ChevronUp,
+  ChevronDown,
+  Edit,
+  Trash2
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useMonth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import EmployeeModal from '../components/EmployeeModal';
 import { supabase } from '../lib/supabase';
-import { calculateDailyWage, calculateEmployeeMonthlySummary } from '../utils/wageCalculator';
+import { calculateEmployeeMonthlySummary, calculateDailyWage } from '../utils/wageCalculator';
 
 const DailyLogs = () => {
   const { user, userProfile } = useAuth();
@@ -36,6 +39,8 @@ const DailyLogs = () => {
   const [showForm, setShowForm] = useState(false);
   const [showBulkImport, setShowBulkImport] = useState(false);
   const [showBulkEntry, setShowBulkEntry] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingLogId, setEditingLogId] = useState(null);
   const [selectedEmployee, setSelectedEmployee] = useState('');
   const [selectedEmployees, setSelectedEmployees] = useState([]);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -56,21 +61,43 @@ const DailyLogs = () => {
   const [bulkPreview, setBulkPreview] = useState([]);
   const [holidays, setHolidays] = useState([]);
   const [showHolidayManager, setShowHolidayManager] = useState(false);
+  const [showHolidaysAccordion, setShowHolidaysAccordion] = useState(false);
   const [newHoliday, setNewHoliday] = useState('');
   const [sites, setSites] = useState([]);
+
+
+
+  // Bahrain holidays for 2025
+  const bahrainHolidays = [
+    '2025-01-01', // New Year's Day
+    '2025-01-28', // Prophet Muhammad's Birthday
+    '2025-05-01', // Labour Day
+    '2025-06-16', // Eid al-Fitr (estimated)
+    '2025-06-17', // Eid al-Fitr (estimated)
+    '2025-06-18', // Eid al-Fitr (estimated)
+    '2025-08-21', // Eid al-Adha (estimated)
+    '2025-08-22', // Eid al-Adha (estimated)
+    '2025-08-23', // Eid al-Adha (estimated)
+    '2025-09-15', // Islamic New Year (estimated)
+    '2025-12-16', // Bahrain National Day
+    '2025-12-17', // Bahrain National Day
+  ];
 
   useEffect(() => {
     fetchEmployees();
     fetchDailyLogs();
     fetchSites();
+    // Initialize with Bahrain holidays
+    setHolidays(bahrainHolidays);
   }, [selectedMonth]);
 
-  useEffect(() => {
-    const date = new Date(selectedDate);
-    setIsFriday(date.getDay() === 5);
-    const isHolidayDate = holidays.includes(selectedDate);
-    setIsHoliday(isHolidayDate);
-  }, [selectedDate, holidays]);
+
+
+  // DISABLED: No more automatic hour adjustments
+  // useEffect(() => {
+  //   // ALL AUTOMATIC HOUR ADJUSTMENTS DISABLED
+  //   // User must enter all hours manually
+  // }, []);
 
   useEffect(() => {
     if (selectedEmployee) {
@@ -81,13 +108,66 @@ const DailyLogs = () => {
     }
   }, [selectedEmployee, employees]);
 
+  // Detect Fridays and holidays when date changes
   useEffect(() => {
-    if (selectedEmployee && (ntHours > 0 || notHours > 0 || hotHours > 0 || adjustmentHours !== 0)) {
+    const date = new Date(selectedDate);
+    const dayOfWeek = date.getDay();
+    const isFriday = dayOfWeek === 5;
+    const isBahrainHoliday = bahrainHolidays.includes(selectedDate);
+    const isCustomHoliday = holidays.includes(selectedDate);
+    
+    setIsFriday(isFriday);
+    setIsHoliday(isBahrainHoliday || isCustomHoliday);
+  }, [selectedDate, holidays, bahrainHolidays]);
+
+  // Auto-populate NT hours when Friday/Holiday is detected, clear when not
+  useEffect(() => {
+    // Don't auto-adjust hours when editing existing logs
+    if (isEditing) return;
+    
+    if (isFriday || isHoliday) {
+      // Only set NT to 8 if no hours have been entered yet
+      if (ntHours === 0 && notHours === 0 && hotHours === 0) {
+        setNtHours(8);
+      }
+    } else {
+      // Clear NT to 0 for regular weekdays (non-Friday, non-holiday)
+      if (ntHours === 8) {
+        setNtHours(0);
+      }
+    }
+  }, [isFriday, isHoliday, ntHours, notHours, hotHours, isEditing]);
+
+  // Auto-populate bulk NT hours when Friday/Holiday is detected, clear when not
+  useEffect(() => {
+    // Don't auto-adjust hours when editing existing logs
+    if (isEditing) return;
+    
+    if (isFriday || isHoliday) {
+      // Only set bulk NT to 8 if no hours have been entered yet
+      if (bulkNtHours === 0 && bulkNotHours === 0 && bulkHotHours === 0) {
+        setBulkNtHours(8);
+      }
+    } else {
+      // Clear bulk NT to 0 for regular weekdays (non-Friday, non-holiday)
+      if (bulkNtHours === 8) {
+        setBulkNtHours(0);
+      }
+    }
+  }, [isFriday, isHoliday, bulkNtHours, bulkNotHours, bulkHotHours, isEditing]);
+
+  // Calculate wages when hours change
+  useEffect(() => {
+    if (selectedEmployeeInfo && (ntHours > 0 || notHours > 0 || hotHours > 0)) {
       calculateWages();
     } else {
       setCalculations(null);
     }
-  }, [selectedEmployee, ntHours, notHours, hotHours, adjustmentHours, isHoliday, isFriday]);
+  }, [ntHours, notHours, hotHours, selectedEmployeeInfo]);
+  // useEffect(() => {
+  //   // ALL AUTOMATIC CALCULATIONS DISABLED
+  //   // User must manually trigger calculations if needed
+  // }, []);
 
   const fetchEmployees = async () => {
     try {
@@ -176,7 +256,12 @@ const DailyLogs = () => {
         let totalPay = 0;
         if (log.employees) {
           try {
+            console.log('Calculating wage for:', log.date, 'Employee:', log.employees.name);
+            console.log('Employee data:', log.employees);
+            console.log('Log hours:', { nt: log.nt_hours, rot: log.rot_hours, hot: log.hot_hours });
+            
             const wageCalculation = calculateDailyWage(log, log.employees);
+            console.log('Wage calculation result:', wageCalculation);
             totalPay = wageCalculation.totalPay;
           } catch (error) {
             console.error('Error calculating wage for log:', log.date, error);
@@ -237,50 +322,34 @@ const DailyLogs = () => {
     }
   };
 
+  // Calculate wages based on current hours and selected employee
   const calculateWages = () => {
     if (!selectedEmployeeInfo) return;
-
-    const employee = selectedEmployeeInfo;
     
-    // Create a daily log object for the wage calculator
-    const dailyLog = {
-      date: selectedDate,
+    try {
+      const dailyLog = {
+        date: selectedDate,
+        ntHours: ntHours || 0,
+        rotHours: notHours || 0,
+        hotHours: hotHours || 0
+      };
+      
+      const wageCalculation = calculateDailyWage(dailyLog, selectedEmployeeInfo);
+      setCalculations(wageCalculation);
+    } catch (error) {
+      console.error('Error calculating wages:', error);
+      setCalculations(null);
+    }
+  };
+
+  // DISABLED: No more automatic hour adjustments - user must enter all hours manually
+  const calculateFinalHours = () => {
+    // Return hours exactly as entered - NO AUTOMATIC CHANGES
+    return {
       ntHours: ntHours || 0,
       notHours: notHours || 0,
-      hotHours: hotHours || 0,
-      adjustmentHours: adjustmentHours || 0,
-      isHoliday,
-      isFriday
+      hotHours: hotHours || 0
     };
-
-    // Calculate wages using the wage calculator
-    const wageCalculation = calculateDailyWage(dailyLog, employee);
-    
-    const normalPay = wageCalculation.normalPay;
-    const regularOTPay = wageCalculation.regularOTPay;
-    const holidayOTPay = wageCalculation.holidayOTPay;
-    const adjustmentPay = 0; // Adjustment pay is not calculated in the wage calculator
-    const totalPay = normalPay + regularOTPay + holidayOTPay + adjustmentPay;
-    const allowance = employee.allowance || 0;
-    const finalPay = totalPay + allowance;
-    const deductions = employee.deductions || 0;
-    const advanceDeductions = 0;
-    const netPay = finalPay - deductions - advanceDeductions;
-    const roundedNetPay = Math.round(netPay * 10) / 10;
-
-    setCalculations({
-      normalPay,
-      regularOTPay,
-      holidayOTPay,
-      adjustmentPay,
-      totalPay,
-      allowance,
-      finalPay,
-      deductions,
-      advanceDeductions,
-      netPay,
-      roundedNetPay
-    });
   };
 
   const calculateAdvanceDeductions = (employeeId) => {
@@ -302,24 +371,48 @@ const DailyLogs = () => {
     }
 
     try {
-      // Save to database
-      const { data, error } = await supabase
-        .from('daily_logs')
-        .insert({
-          employee_id: selectedEmployee,
-          date: selectedDate,
-          nt_hours: ntHours,
-          rot_hours: notHours, // ROT hours mapped from notHours
-          hot_hours: hotHours,
-          site_id: selectedSite,
-          is_holiday: isHoliday,
-          is_friday: isFriday,
-          created_at: new Date().toISOString()
-        });
+      let result;
+      
+      if (isEditing) {
+        // Update existing log
+        const { data, error } = await supabase
+          .from('daily_logs')
+          .update({
+            employee_id: selectedEmployee,
+            date: selectedDate,
+            nt_hours: ntHours,
+            rot_hours: notHours, // ROT hours mapped from notHours
+            hot_hours: hotHours,
+            site_id: selectedSite,
+            is_holiday: isHoliday,
+            is_friday: isFriday,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', editingLogId);
 
-      if (error) throw error;
+        if (error) throw error;
+        result = data;
+        toast.success('Daily log updated successfully');
+      } else {
+        // Create new log
+        const { data, error } = await supabase
+          .from('daily_logs')
+          .insert({
+            employee_id: selectedEmployee,
+            date: selectedDate,
+            nt_hours: ntHours,
+            rot_hours: notHours, // ROT hours mapped from notHours
+            hot_hours: hotHours,
+            site_id: selectedSite,
+            is_holiday: isHoliday,
+            is_friday: isFriday,
+            created_at: new Date().toISOString()
+          });
 
-      toast.success('Daily log added successfully');
+        if (error) throw error;
+        result = data;
+        toast.success('Daily log added successfully');
+      }
       
       // Reset form
       setSelectedEmployee('');
@@ -333,12 +426,14 @@ const DailyLogs = () => {
       setIsFriday(false);
       setCalculations(null);
       setShowForm(false);
+      setIsEditing(false);
+      setEditingLogId(null);
 
       // Refresh the data
       await fetchDailyLogs();
     } catch (error) {
-      console.error('Error adding daily log:', error);
-      toast.error('Failed to add daily log');
+      console.error('Error saving daily log:', error);
+      toast.error(isEditing ? 'Failed to update daily log' : 'Failed to add daily log');
     }
   };
 
@@ -458,16 +553,50 @@ const DailyLogs = () => {
   };
 
   const addHoliday = () => {
-    if (newHoliday && !holidays.includes(newHoliday)) {
+    if (newHoliday && !holidays.includes(newHoliday) && !bahrainHolidays.includes(newHoliday)) {
       setHolidays(prev => [...prev, newHoliday]);
       setNewHoliday('');
-      toast.success('Holiday added');
+      toast.success('Custom holiday added');
+    } else if (bahrainHolidays.includes(newHoliday)) {
+      toast.error('This date is already a Bahrain holiday');
+    } else {
+      toast.error('Holiday already exists');
     }
   };
 
   const removeHoliday = (date) => {
+    // Only allow removal of custom holidays, not Bahrain holidays
+    if (bahrainHolidays.includes(date)) {
+      toast.error('Cannot remove Bahrain holidays');
+      return;
+    }
     setHolidays(prev => prev.filter(h => h !== date));
-    toast.success('Holiday removed');
+    toast.success('Custom holiday removed');
+  };
+
+  // Get all holidays (Bahrain + custom)
+  const getAllHolidays = () => {
+    const allHolidays = [...bahrainHolidays, ...holidays.filter(h => !bahrainHolidays.includes(h))];
+    return allHolidays.sort();
+  };
+
+  // Get holiday name for display
+  const getHolidayName = (date) => {
+    const holidayNames = {
+      '2025-01-01': 'New Year\'s Day',
+      '2025-01-28': 'Prophet Muhammad\'s Birthday',
+      '2025-05-01': 'Labour Day',
+      '2025-06-16': 'Eid al-Fitr',
+      '2025-06-17': 'Eid al-Fitr',
+      '2025-06-18': 'Eid al-Fitr',
+      '2025-08-21': 'Eid al-Adha',
+      '2025-08-22': 'Eid al-Adha',
+      '2025-08-23': 'Eid al-Adha',
+      '2025-09-15': 'Islamic New Year',
+      '2025-12-16': 'Bahrain National Day',
+      '2025-12-17': 'Bahrain National Day'
+    };
+    return holidayNames[date] || 'Custom Holiday';
   };
 
   // Calculate summary statistics
@@ -523,6 +652,93 @@ const DailyLogs = () => {
 
   const summaryStats = calculateSummaryStats();
 
+  const openForm = () => {
+    setShowForm(true);
+    // Smooth scroll to the form after it renders
+    setTimeout(() => {
+      const formElement = document.querySelector('[data-form="daily-log"]');
+      if (formElement) {
+        formElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 100);
+  };
+
+  const openBulkEntry = () => {
+    setShowBulkEntry(true);
+    // Smooth scroll to the bulk entry form after it renders
+    setTimeout(() => {
+      const formElement = document.querySelector('[data-form="bulk-entry"]');
+      if (formElement) {
+        formElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 100);
+  };
+
+  const editLog = (log) => {
+    console.log('editLog called with log:', log);
+    console.log('log.ntHours:', log.ntHours);
+    console.log('log.nt_hours:', log.nt_hours);
+    console.log('log.notHours:', log.notHours);
+    console.log('log.rot_hours:', log.rot_hours);
+    console.log('log.hotHours:', log.hotHours);
+    console.log('log.hot_hours:', log.hot_hours);
+    
+    setIsEditing(true);
+    setEditingLogId(log.id);
+    setSelectedEmployee(log.employee_id);
+    setSelectedDate(log.date);
+    // Use the processed field names that are displayed in the table
+    const ntValue = log.ntHours || log.nt_hours || 0;
+    const notValue = log.notHours || log.rot_hours || 0;
+    const hotValue = log.hotHours || log.hot_hours || 0;
+    
+    console.log('Setting values:', { ntValue, notValue, hotValue });
+    
+    setNtHours(ntValue);
+    setNotHours(notValue);
+    setHotHours(hotValue);
+    setAdjustmentHours(0); // Reset adjustment hours
+    setSelectedSite(log.sites?.id || '');
+    setShowForm(true);
+  };
+
+  const cancelEdit = () => {
+    setIsEditing(false);
+    setEditingLogId(null);
+    setShowForm(false);
+    // Reset form to default values
+    setSelectedEmployee('');
+    setSelectedDate(new Date().toISOString().split('T')[0]);
+    setNtHours(0);
+    setNotHours(0);
+    setHotHours(0);
+    setAdjustmentHours(0);
+    setSelectedSite('');
+  };
+
+  const deleteLog = async (logId) => {
+    if (!confirm('Are you sure you want to delete this daily log?')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('daily_logs')
+        .delete()
+        .eq('id', logId);
+
+      if (error) throw error;
+
+      toast.success('Daily log deleted successfully');
+      
+      // Refresh the data
+      await fetchDailyLogs();
+    } catch (error) {
+      console.error('Error deleting daily log:', error);
+      toast.error('Failed to delete daily log');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -551,16 +767,16 @@ const DailyLogs = () => {
             <div className="flex items-center space-x-3">
               {isEditor && (
                 <button
-                  onClick={() => setShowForm(true)}
+                  onClick={openForm}
                   className="btn btn-primary flex items-center space-x-2"
                 >
                   <Plus size={16} />
-                  <span>Add Daily Log</span>
+                  <span>{isEditing ? 'Edit Daily Log' : 'Add Daily Log'}</span>
                 </button>
               )}
               {isEditor && (
                 <button
-                  onClick={() => setShowBulkEntry(true)}
+                  onClick={openBulkEntry}
                   className="btn btn-secondary flex items-center space-x-2"
                 >
                   <Users size={16} />
@@ -629,16 +845,142 @@ const DailyLogs = () => {
         </div>
       </div>
 
-      {/* Add Daily Log Form */}
-      {showForm && (
-        <div className="card">
-          <div className="card-header">
+      {/* Bahrain Holidays Section - HIDDEN */}
+      {/* 
+      <div className="card">
+        <div className="card-header">
+          <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <Clock size={20} className="text-primary-600" />
-              <h3 className="text-lg font-medium text-gray-900">Add Daily Log</h3>
+              <Calendar size={20} className="text-red-600" />
+              <h3 className="text-lg font-medium text-gray-900">Bahrain Holidays & Fridays</h3>
+            </div>
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={() => setShowHolidaysAccordion(!showHolidaysAccordion)}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center space-x-2"
+              >
+                {showHolidaysAccordion ? (
+                  <>
+                    <span>▼</span>
+                    <span>Hide</span>
+                  </>
+                ) : (
+                  <>
+                    <span>▶</span>
+                    <span>Show</span>
+                  </>
+                )}
+              </button>
+              
+              <button
+                onClick={() => setShowHolidayManager(true)}
+                className="btn btn-outline text-sm"
+              >
+                Manage Holidays
+              </button>
             </div>
           </div>
-          <div className="card-body">
+        </div>
+        
+        {showHolidaysAccordion && (
+          <div className="card-body border-t">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h4 className="text-sm font-medium text-gray-900 mb-3 flex items-center">
+                  <span className="w-3 h-3 bg-red-500 rounded-full mr-2"></span>
+                  Bahrain Public Holidays 2025
+                </h4>
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {bahrainHolidays.map((holiday) => (
+                    <div key={holiday} className="flex items-center justify-between text-sm">
+                      <span className="text-gray-700">
+                        {formatDate(holiday)} - {getHolidayName(holiday)}
+                      </span>
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                        Official
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <h4 className="text-sm font-medium text-gray-900 mb-3 flex items-center">
+                  <span className="w-3 h-3 bg-blue-500 rounded-full mr-2"></span>
+                  Custom Holidays
+                </h4>
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {holidays.filter(h => !bahrainHolidays.includes(h)).length === 0 ? (
+                    <p className="text-sm text-gray-500 italic">No custom holidays added</p>
+                  ) : (
+                    holidays.filter(h => !bahrainHolidays.includes(h)).map((holiday) => (
+                      <div key={holiday} className="flex items-center justify-between text-sm">
+                        <span className="text-gray-700">{formatDate(holiday)}</span>
+                        <button
+                          onClick={() => removeHoliday(holiday)}
+                          className="text-red-600 hover:text-red-800 text-xs"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+              <div className="flex items-center space-x-2 mb-2">
+                <span className="w-3 h-3 bg-yellow-500 rounded-full"></span>
+                <h5 className="text-sm font-medium text-yellow-800">Friday Rules</h5>
+              </div>
+              <div className="text-sm text-yellow-700 space-y-1">
+                <p>• <strong>Not Working:</strong> Automatically set to 8 NT hours (full day off)</p>
+                <p>• <strong>Working:</strong> Actual hours + 8 additional HOT hours (compensation)</p>
+              </div>
+            </div>
+
+            <div className="mt-4 p-4 bg-red-50 rounded-lg border border-red-200">
+              <div className="flex items-center space-x-2 mb-2">
+                <span className="w-3 h-3 bg-red-500 rounded-full"></span>
+                <h5 className="text-sm font-medium text-red-800">Holiday Rules</h5>
+              </div>
+              <div className="text-sm text-red-700 space-y-1">
+                <p>• <strong>Not Working:</strong> Automatically set to 8 NT hours (full day off)</p>
+                <p>• <strong>Working:</strong> Actual hours + 8 additional HOT hours (compensation)</p>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {!showHolidaysAccordion && (
+          <div className="p-4 text-center text-gray-500 border-t">
+            <p>Click "Show" to view holiday information and rules</p>
+          </div>
+        )}
+      </div>
+      */}
+
+      {/* Add Daily Log Form */}
+      {showForm && (
+        <div className="card border-2 border-blue-200 bg-blue-50/30" data-form="daily-log">
+          <div className="card-header bg-blue-100/50">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <Clock size={20} className="text-blue-600" />
+                <h3 className="text-lg font-medium text-blue-900">
+                  {isEditing ? 'Edit Daily Log' : 'Add Daily Log'}
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowForm(false)}
+                className="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-white/50"
+              >
+                <XCircle size={20} />
+              </button>
+            </div>
+          </div>
+          <div className="card-body max-h-[80vh] overflow-y-auto">
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Employee Selection */}
               <div className="form-group">
@@ -660,7 +1002,7 @@ const DailyLogs = () => {
 
               {/* Auto-filled Employee Information */}
               {selectedEmployeeInfo && (
-                <div className="bg-blue-50 rounded-lg p-4">
+                <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
                   <div className="flex items-center space-x-2 mb-3">
                     <User size={16} className="text-blue-600" />
                     <h4 className="text-sm font-medium text-gray-900">Employee Information</h4>
@@ -721,9 +1063,10 @@ const DailyLogs = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div className="form-group">
                   <label className="form-label">Normal Time (N.T) Hours</label>
+                  {console.log('Rendering form with ntHours:', ntHours, 'isEditing:', isEditing)}
                   <input
                     type="number"
-                    step="0.5"
+                    step="0.001"
                     min="0"
                     max="24"
                     value={ntHours}
@@ -737,7 +1080,7 @@ const DailyLogs = () => {
                   <label className="form-label">Regular O.T (R.O.T) Hours</label>
                   <input
                     type="number"
-                    step="0.5"
+                    step="0.001"
                     min="0"
                     max="24"
                     value={notHours}
@@ -751,7 +1094,7 @@ const DailyLogs = () => {
                   <label className="form-label">Holiday Overtime (H.O.T) Hours</label>
                   <input
                     type="number"
-                    step="0.5"
+                    step="0.001"
                     min="0"
                     max="24"
                     value={hotHours}
@@ -768,7 +1111,7 @@ const DailyLogs = () => {
                   </label>
                   <input
                     type="number"
-                    step="0.5"
+                    step="0.001"
                     min="-24"
                     max="24"
                     value={adjustmentHours}
@@ -782,75 +1125,59 @@ const DailyLogs = () => {
                 </div>
               </div>
 
-              {/* Day Type Checkboxes */}
-              <div className="flex flex-wrap gap-6">
-                <label className="flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={isHoliday}
-                    onChange={(e) => setIsHoliday(e.target.checked)}
-                    className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                  />
-                  <span className="ml-2 text-sm text-gray-700">Holiday</span>
-                </label>
-                <label className="flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={isFriday}
-                    onChange={(e) => setIsFriday(e.target.checked)}
-                    className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                  />
-                  <span className="ml-2 text-sm text-gray-700">Friday</span>
-                </label>
-              </div>
+
 
               {/* Wage Calculation Display */}
               {calculations && (
-                <div className="bg-green-50 rounded-lg p-4">
+                <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
                   <div className="flex items-center space-x-2 mb-3">
-                    <Calculator size={16} className="text-green-600" />
-                    <h4 className="text-sm font-medium text-gray-900">Wage Calculation</h4>
+                    <DollarSign size={16} className="text-blue-600" />
+                    <h4 className="text-sm font-medium text-gray-900">Wage Calculation Preview</h4>
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     <div>
-                      <span className="text-gray-600">N.T Pay:</span>
-                      <div className="font-medium tabular-nums">{formatCurrency(calculations.normalPay)}</div>
+                      <span className="text-gray-600 text-xs uppercase tracking-wide">Normal Time</span>
+                      <div className="font-medium text-green-600">
+                        {ntHours} hrs × BHD {calculations.rates.ntRate?.toFixed(3) || '0.000'} = BHD {calculations.normalPay?.toFixed(3) || '0.000'}
+                      </div>
                     </div>
                     <div>
-                      <span className="text-gray-600">R.O.T Pay:</span>
-                      <div className="font-medium tabular-nums">{formatCurrency(calculations.regularOTPay)}</div>
+                      <span className="text-gray-600 text-xs uppercase tracking-wide">Regular Overtime</span>
+                      <div className="font-medium text-blue-600">
+                        {notHours} hrs × BHD {calculations.rates.rotRate?.toFixed(3) || '0.000'} = BHD {calculations.regularOTPay?.toFixed(3) || '0.000'}
+                      </div>
                     </div>
                     <div>
-                      <span className="text-gray-600">H.O.T Pay:</span>
-                      <div className="font-medium tabular-nums">{formatCurrency(calculations.holidayOTPay)}</div>
+                      <span className="text-gray-600 text-xs uppercase tracking-wide">Holiday Overtime</span>
+                      <div className="font-medium text-red-600">
+                        {hotHours} hrs × BHD {calculations.rates.hotRate?.toFixed(3) || '0.000'} = BHD {calculations.holidayOTPay?.toFixed(3) || '0.000'}
+                      </div>
                     </div>
                     <div>
-                      <span className="text-gray-600">Adjustment Pay:</span>
-                      <div className="font-medium tabular-nums">{formatCurrency(calculations.adjustmentPay)}</div>
-                    </div>
-                    <div>
-                      <span className="text-gray-600">Total Pay:</span>
-                      <div className="font-medium tabular-nums">{formatCurrency(calculations.totalPay)}</div>
+                      <span className="text-gray-600 text-xs uppercase tracking-wide">Total Daily Pay</span>
+                      <div className="font-medium text-lg text-green-600">
+                        BHD {calculations.totalPay?.toFixed(3) || '0.000'}
+                      </div>
                     </div>
                   </div>
                 </div>
               )}
 
               {/* Form Actions */}
-              <div className="flex justify-end space-x-3">
+              <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
                 <button
                   type="button"
-                  onClick={() => setShowForm(false)}
+                  onClick={isEditing ? cancelEdit : () => setShowForm(false)}
                   className="btn btn-secondary"
                 >
-                  Cancel
+                  {isEditing ? 'Cancel Edit' : 'Cancel'}
                 </button>
                 <button
                   type="submit"
                   className="btn btn-primary flex items-center space-x-2"
                 >
                   <Save size={16} />
-                  <span>Save Daily Log</span>
+                  <span>{isEditing ? 'Update Daily Log' : 'Save Daily Log'}</span>
                 </button>
               </div>
             </form>
@@ -860,14 +1187,22 @@ const DailyLogs = () => {
 
       {/* Bulk Entry Form */}
       {showBulkEntry && (
-        <div className="card">
-          <div className="card-header">
-            <div className="flex items-center space-x-3">
-              <Users size={20} className="text-primary-600" />
-              <h3 className="text-lg font-medium text-gray-900">Bulk Entry - Multiple Employees</h3>
+        <div className="card border-2 border-purple-200 bg-purple-50/30" data-form="bulk-entry">
+          <div className="card-header bg-purple-100/50">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <Users size={20} className="text-purple-600" />
+                <h3 className="text-lg font-medium text-purple-900">Bulk Entry - Multiple Employees</h3>
+              </div>
+              <button
+                onClick={() => setShowBulkEntry(false)}
+                className="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-white/50"
+              >
+                <XCircle size={20} />
+              </button>
             </div>
           </div>
-          <div className="card-body">
+          <div className="card-body max-h-[80vh] overflow-y-auto">
             <form onSubmit={handleBulkEntrySubmit} className="space-y-6">
               {/* Employee Selection */}
               <div className="form-group">
@@ -891,7 +1226,7 @@ const DailyLogs = () => {
                     {selectedEmployees.length} employee(s) selected
                   </span>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-60 overflow-y-auto border border-gray-200 rounded-lg p-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-60 overflow-y-auto border border-gray-200 rounded-lg p-3 bg-white">
                   {employees.map((employee) => (
                     <label key={employee.id} className="flex items-center space-x-2 cursor-pointer">
                       <input
@@ -949,7 +1284,7 @@ const DailyLogs = () => {
                   <label className="form-label">Normal Time (N.T)</label>
                   <input
                     type="number"
-                    step="0.5"
+                    step="0.001"
                     min="0"
                     max="24"
                     value={bulkNtHours}
@@ -962,7 +1297,7 @@ const DailyLogs = () => {
                   <label className="form-label">Regular O.T (R.O.T)</label>
                   <input
                     type="number"
-                    step="0.5"
+                    step="0.001"
                     min="0"
                     max="24"
                     value={bulkNotHours}
@@ -975,7 +1310,7 @@ const DailyLogs = () => {
                   <label className="form-label">Holiday O.T (H.O.T)</label>
                   <input
                     type="number"
-                    step="0.5"
+                    step="0.001"
                     min="0"
                     max="24"
                     value={bulkHotHours}
@@ -988,7 +1323,7 @@ const DailyLogs = () => {
                   <label className="form-label">Adjustment Hours</label>
                   <input
                     type="number"
-                    step="0.5"
+                    step="0.001"
                     min="-24"
                     max="24"
                     value={bulkAdjustmentHours}
@@ -999,49 +1334,24 @@ const DailyLogs = () => {
                 </div>
               </div>
 
-              {/* Day Type Checkboxes */}
-              <div className="flex flex-wrap gap-6">
-                <label className="flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={isHoliday}
-                    onChange={(e) => setIsHoliday(e.target.checked)}
-                    className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                  />
-                  <span className="ml-2 text-sm text-gray-700">Holiday</span>
-                </label>
-                <label className="flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={isFriday}
-                    onChange={(e) => setIsFriday(e.target.checked)}
-                    className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                  />
-                  <span className="ml-2 text-sm text-gray-700">Friday</span>
-                </label>
-              </div>
+
 
               {/* Preview */}
               {selectedEmployees.length > 0 && (
-                <div className="bg-blue-50 rounded-lg p-4">
+                <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                   <div className="flex items-center space-x-2 mb-3">
-                    <Eye size={16} className="text-blue-600" />
+                    <Users size={16} className="text-gray-600" />
                     <h4 className="text-sm font-medium text-gray-900">Preview</h4>
                   </div>
-                  <p className="text-sm text-gray-700">
-                    Will create daily logs for <strong>{selectedEmployees.length} employee(s)</strong> with:
-                  </p>
-                  <div className="mt-2 text-sm text-gray-600">
-                    <span>N.T: {bulkNtHours}h, </span>
-                    <span>R.O.T: {bulkNotHours}h, </span>
-                    <span>H.O.T: {bulkHotHours}h, </span>
-                    <span>Adjustment: {bulkAdjustmentHours}h</span>
+                  <div className="text-sm text-gray-700">
+                    <p>This will create daily logs for <strong>{selectedEmployees.length} employee(s)</strong> on <strong>{formatDate(selectedDate)}</strong></p>
+                    <p className="mt-1">Total hours per employee: <strong>{(bulkNtHours || 0) + (bulkNotHours || 0) + (bulkHotHours || 0)} hours</strong></p>
                   </div>
                 </div>
               )}
 
               {/* Form Actions */}
-              <div className="flex justify-end space-x-3">
+              <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
                 <button
                   type="button"
                   onClick={() => setShowBulkEntry(false)}
@@ -1052,9 +1362,10 @@ const DailyLogs = () => {
                 <button
                   type="submit"
                   className="btn btn-primary flex items-center space-x-2"
+                  disabled={selectedEmployees.length === 0}
                 >
                   <Save size={16} />
-                  <span>Save Bulk Logs ({selectedEmployees.length})</span>
+                  <span>Save Bulk Daily Logs</span>
                 </button>
               </div>
             </form>
@@ -1082,6 +1393,7 @@ const DailyLogs = () => {
                 <th className="min-w-[100px]">Site Ref</th>
                 <th className="min-w-[120px]">Day Type</th>
                 <th className="min-w-[120px] text-right">Total Pay</th>
+                <th className="min-w-[120px] text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -1091,7 +1403,7 @@ const DailyLogs = () => {
                     <Calendar className="mx-auto h-12 w-12 text-gray-400 mb-4" />
                     <p>No daily logs found</p>
                     <button
-                      onClick={() => setShowForm(true)}
+                      onClick={openForm}
                       className="mt-2 text-primary-600 hover:text-primary-500"
                     >
                       Add your first daily log
@@ -1133,6 +1445,28 @@ const DailyLogs = () => {
                     </td>
                     <td className="text-right font-semibold text-green-600 tabular-nums">
                       {formatCurrency(log.totalPay)}
+                    </td>
+                    <td className="text-center">
+                      <div className="flex items-center justify-center space-x-2">
+                        {isEditor && (
+                          <>
+                            <button
+                              onClick={() => editLog(log)}
+                              className="btn btn-sm btn-outline text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                              title="Edit"
+                            >
+                              <Edit size={14} />
+                            </button>
+                            <button
+                              onClick={() => deleteLog(log.id)}
+                              className="btn btn-sm btn-outline text-red-600 hover:text-red-700 hover:bg-red-50"
+                              title="Delete"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -1181,6 +1515,84 @@ const DailyLogs = () => {
               >
                 Preview
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Holiday Manager Modal */}
+      {showHolidayManager && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-medium text-gray-900">Manage Holidays</h3>
+                <button
+                  onClick={() => setShowHolidayManager(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <XCircle size={20} />
+                </button>
+              </div>
+
+              {/* Add Custom Holiday */}
+              <div className="mb-6">
+                <h4 className="text-sm font-medium text-gray-900 mb-2">Add Custom Holiday</h4>
+                <div className="flex space-x-2">
+                  <input
+                    type="date"
+                    value={newHoliday}
+                    onChange={(e) => setNewHoliday(e.target.value)}
+                    className="input flex-1"
+                    min="2025-01-01"
+                    max="2025-12-31"
+                  />
+                  <button
+                    onClick={addHoliday}
+                    className="btn btn-primary text-sm"
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+
+              {/* All Holidays List */}
+              <div>
+                <h4 className="text-sm font-medium text-gray-900 mb-2">All Holidays</h4>
+                <div className="max-h-64 overflow-y-auto space-y-2">
+                  {getAllHolidays().map((holiday) => {
+                    const isBahrainHoliday = bahrainHolidays.includes(holiday);
+                    return (
+                      <div key={holiday} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                        <div className="flex items-center space-x-2">
+                          <span className={`w-2 h-2 rounded-full ${isBahrainHoliday ? 'bg-red-500' : 'bg-blue-500'}`}></span>
+                          <span className="text-sm text-gray-700">
+                            {formatDate(holiday)}
+                            {isBahrainHoliday && ` - ${getHolidayName(holiday)}`}
+                          </span>
+                        </div>
+                        {!isBahrainHoliday && (
+                          <button
+                            onClick={() => removeHoliday(holiday)}
+                            className="text-red-600 hover:text-red-800 text-xs"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-end">
+                <button
+                  onClick={() => setShowHolidayManager(false)}
+                  className="btn btn-secondary"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>

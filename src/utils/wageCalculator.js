@@ -17,6 +17,8 @@ const calculateMonthlyRates = (basicPay, month, year) => {
 
 // Calculate daily wage for an employee with dynamic rates
 const calculateDailyWage = (dailyLog, employee) => {
+  console.log('calculateDailyWage called with:', { dailyLog, employee });
+  
   // Handle both snake_case (database) and camelCase field names for hours
   const ntHours = dailyLog.ntHours || dailyLog.nt_hours || 0;
   const rotHours = dailyLog.rotHours || dailyLog.rot_hours || 0;
@@ -34,22 +36,29 @@ const calculateDailyWage = (dailyLog, employee) => {
   // Calculate rates based on employment type and salary type
   let rates = { ntRate: ntRate || 0, rotRate: rotRate || 0, hotRate: hotRate || 0 };
   
-    if (ntRate > 0 && rotRate > 0 && hotRate > 0) {
+  console.log('Rate calculation inputs:', { ntRate, rotRate, hotRate, basicPay, hourlyWage, employmentType, salaryType });
+  
+  if (ntRate > 0 && rotRate > 0 && hotRate > 0) {
     // If explicit rates are provided, use them
+    console.log('Using explicit rates');
     rates = { ntRate, rotRate, hotRate };
   } else if (employmentType === 'permanent' && salaryType === 'monthly' && basicPay > 0) {
     // For permanent employees with monthly salary, calculate dynamic rates from basic pay
+    console.log('Calculating dynamic rates from basic pay');
     const logDate = new Date(dailyLog.date);
     const dynamicRates = calculateMonthlyRates(basicPay, logDate.getMonth(), logDate.getFullYear());
     rates = dynamicRates;
   } else if (salaryType === 'hourly' && hourlyWage > 0) {
     // For employees with hourly pay (permanent, flexi visa, or manpower supply), use hourly wage with multipliers
+    console.log('Using hourly wage with multipliers');
     rates = {
       ntRate: hourlyWage,
       rotRate: hourlyWage * 1.25,
       hotRate: hourlyWage * 1.5
     };
   }
+  
+  console.log('Final rates calculated:', rates);
 
   // Calculate pay for each type with validation and spreadsheet-style rounding
   const rawNormalPay = (ntHours || 0) * (rates.ntRate || 0);
