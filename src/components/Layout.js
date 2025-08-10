@@ -39,7 +39,7 @@ const Layout = () => {
     { name: 'Timecard', href: '/timecard', icon: Clock, role: 'viewer' },
     { name: 'Salary Advances', href: '/salary-advances', icon: CreditCard, role: 'viewer' },
     { name: 'Allowances', href: '/allowances', icon: Gift, role: 'admin' },
-    { name: 'User Management', href: '/users', icon: Shield, role: 'admin' },
+    { name: 'Settings', href: '/settings', icon: Settings, role: 'admin' },
   ];
 
   const filteredNavigation = navigation.filter(item => {
@@ -181,9 +181,6 @@ const Layout = () => {
             </div>
             <div className="flex items-center space-x-3">
               <MonthSelector />
-              <button className="p-2 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-                <Settings size={18} />
-              </button>
             </div>
           </div>
         </div>

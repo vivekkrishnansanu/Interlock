@@ -1,0 +1,41 @@
+{
+  "name": "vivek-krishnan-portfolio",
+  "version": "1.0.0",
+  "description": "Portfolio website for Vivek Krishnan S - Product Manager & Designer",
+  "main": "index.html",
+  "scripts": {
+    "start": "python -m http.server 8000",
+    "dev": "python -m http.server 8000",
+    "serve": "npx serve .",
+    "build": "echo 'Static site - no build step required'",
+    "test": "echo 'No tests specified'"
+  },
+  "keywords": [
+    "portfolio",
+    "product-design",
+    "product-management",
+    "web-design",
+    "responsive",
+    "modern"
+  ],
+  "author": "Vivek Krishnan S",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/username/vivek-krishnan-portfolio.git"
+  },
+  "bugs": {
+    "url": "https://github.com/username/vivek-krishnan-portfolio/issues"
+  },
+  "homepage": "https://itsmevivek.framer.wiki/",
+  "devDependencies": {},
+  "dependencies": {},
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not dead"
+  ],
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

@@ -127,6 +127,10 @@ html, body {
     background-color: var(--linear-success);
   }
 
+  .btn-sm {
+    @apply px-2 py-1 text-xs font-medium rounded-md transition-colors duration-200;
+  }
+
   /* Input System - Linear Style */
   .input {
     @apply w-full px-3 py-2 text-sm border border-gray-300 rounded-md shadow-sm bg-white;

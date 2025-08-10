@@ -15,7 +15,8 @@ import Allowances from './pages/Allowances';
 import Timecard from './pages/Timecard';
 import WorkSites from './pages/WorkSites';
 import Profile from './pages/Profile';
-import UserManagement from './pages/UserManagement';
+
+import Settings from './pages/Settings';
 import { useAuth } from './contexts/AuthContext';
 
 // Protected Route Component
@@ -62,7 +63,8 @@ function App() {
             <Route path="timecard" element={<Timecard />} />
             <Route path="work-sites" element={<WorkSites />} />
             <Route path="profile" element={<Profile />} />
-            <Route path="users" element={<UserManagement />} />
+
+            <Route path="settings" element={<Settings />} />
           </Route>
         </Routes>
       </div>
