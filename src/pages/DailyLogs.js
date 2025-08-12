@@ -33,6 +33,9 @@ const DailyLogs = () => {
   const { user, userProfile } = useAuth();
   const { selectedMonth, isCurrentMonth, getSelectedMonthName } = useMonth();
   const isEditor = ['admin', 'editor'].includes(userProfile?.role);
+  
+  // REMOVED: Render counter that was causing issues
+  
   const [employees, setEmployees] = useState([]);
   const [dailyLogs, setDailyLogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -45,6 +48,8 @@ const DailyLogs = () => {
   const [selectedEmployees, setSelectedEmployees] = useState([]);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [ntHours, setNtHours] = useState(0);
+  // String-controlled input to prevent unwanted coercion while typing
+  const [ntHoursInput, setNtHoursInput] = useState('');
   const [notHours, setNotHours] = useState(0);
   const [hotHours, setHotHours] = useState(0);
   const [adjustmentHours, setAdjustmentHours] = useState(0);
@@ -83,21 +88,29 @@ const DailyLogs = () => {
     '2025-12-17', // Bahrain National Day
   ];
 
+  // Keep numeric ntHours in sync with string input - DISABLED to prevent interference
+  // useEffect(() => {
+  //   const parsed = parseFloat(ntHoursInput);
+  //   setNtHours(isNaN(parsed) ? 0 : parsed);
+  // }, [ntHoursInput]);
+
+  // Debug effect to monitor ntHoursInput changes
+  useEffect(() => {
+    console.log('ntHoursInput changed in useEffect:', ntHoursInput);
+  }, [ntHoursInput]);
+
+  // Debug effect to monitor ntHours changes
+  useEffect(() => {
+    console.log('ntHours changed in useEffect:', ntHours);
+  }, [ntHours]);
+
+  // Data loading and holiday detection
   useEffect(() => {
     fetchEmployees();
     fetchDailyLogs();
     fetchSites();
-    // Initialize with Bahrain holidays
     setHolidays(bahrainHolidays);
-  }, [selectedMonth]);
-
-
-
-  // DISABLED: No more automatic hour adjustments
-  // useEffect(() => {
-  //   // ALL AUTOMATIC HOUR ADJUSTMENTS DISABLED
-  //   // User must enter all hours manually
-  // }, []);
+  }, [selectedMonth.month, selectedMonth.year]);
 
   useEffect(() => {
     if (selectedEmployee) {
@@ -108,55 +121,39 @@ const DailyLogs = () => {
     }
   }, [selectedEmployee, employees]);
 
-  // Detect Fridays and holidays when date changes
+  // Detect Fridays and holidays when date changes or custom holidays update
   useEffect(() => {
     const date = new Date(selectedDate);
     const dayOfWeek = date.getDay();
-    const isFriday = dayOfWeek === 5;
-    const isBahrainHoliday = bahrainHolidays.includes(selectedDate);
-    const isCustomHoliday = holidays.includes(selectedDate);
-    
-    setIsFriday(isFriday);
-    setIsHoliday(isBahrainHoliday || isCustomHoliday);
+    const isFri = dayOfWeek === 5;
+    const isBH = bahrainHolidays.includes(selectedDate);
+    const isCustom = holidays.includes(selectedDate);
+    setIsFriday(isFri);
+    setIsHoliday(isBH || isCustom);
   }, [selectedDate, holidays, bahrainHolidays]);
 
-  // Auto-populate NT hours when Friday/Holiday is detected, clear when not
-  useEffect(() => {
-    // Don't auto-adjust hours when editing existing logs
-    if (isEditing) return;
-    
-    if (isFriday || isHoliday) {
-      // Only set NT to 8 if no hours have been entered yet
-      if (ntHours === 0 && notHours === 0 && hotHours === 0) {
-        setNtHours(8);
-      }
-    } else {
-      // Clear NT to 0 for regular weekdays (non-Friday, non-holiday)
-      if (ntHours === 8) {
-        setNtHours(0);
-      }
-    }
-  }, [isFriday, isHoliday, ntHours, notHours, hotHours, isEditing]);
+  // Safe auto-fill: only set NT to 8 on Friday/holiday if all hours are zero; never clear 8
+  // Removed to avoid interfering with manual entry during Add flow
+  // useEffect(() => {
+  //   if (isEditing) return;
+  //   if (isFriday || isHoliday) {
+  //     if (ntHours === 0 && notHours === 0 && hotHours === 0) {
+  //       setNtHours(8);
+  //     }
+  //   }
+  // }, [isFriday, isHoliday, isEditing]);
 
-  // Auto-populate bulk NT hours when Friday/Holiday is detected, clear when not
-  useEffect(() => {
-    // Don't auto-adjust hours when editing existing logs
-    if (isEditing) return;
-    
-    if (isFriday || isHoliday) {
-      // Only set bulk NT to 8 if no hours have been entered yet
-      if (bulkNtHours === 0 && bulkNotHours === 0 && bulkHotHours === 0) {
-        setBulkNtHours(8);
-      }
-    } else {
-      // Clear bulk NT to 0 for regular weekdays (non-Friday, non-holiday)
-      if (bulkNtHours === 8) {
-        setBulkNtHours(0);
-      }
-    }
-  }, [isFriday, isHoliday, bulkNtHours, bulkNotHours, bulkHotHours, isEditing]);
+  // DISABLED: All automatic hour adjustment logic removed to fix the "8" issue
+  // Users can now manually enter any hours value without interference
+  
+  // REMOVED: This useEffect was causing infinite re-renders
+  // useEffect(() => {
+  //   console.log('ntHours state changed to:', ntHours);
+  // }, [ntHours]);
 
   // Calculate wages when hours change
+  // TEMPORARILY DISABLED: Testing if this is interfering with ntHours state
+  /*
   useEffect(() => {
     if (selectedEmployeeInfo && (ntHours > 0 || notHours > 0 || hotHours > 0)) {
       calculateWages();
@@ -164,6 +161,7 @@ const DailyLogs = () => {
       setCalculations(null);
     }
   }, [ntHours, notHours, hotHours, selectedEmployeeInfo]);
+  */
   // useEffect(() => {
   //   // ALL AUTOMATIC CALCULATIONS DISABLED
   //   // User must manually trigger calculations if needed
@@ -418,6 +416,7 @@ const DailyLogs = () => {
       setSelectedEmployee('');
       setSelectedDate(new Date().toISOString().split('T')[0]);
       setNtHours(0);
+      setNtHoursInput('');
       setNotHours(0);
       setHotHours(0);
       setAdjustmentHours(0);
@@ -653,6 +652,23 @@ const DailyLogs = () => {
   const summaryStats = calculateSummaryStats();
 
   const openForm = () => {
+    console.log('Opening form - resetting values');
+    // Reset form to default values when opening
+    setSelectedEmployee('');
+    setSelectedDate(new Date().toISOString().split('T')[0]);
+    setNtHours(0);
+    setNtHoursInput('');  // Start with empty string instead of '0'
+    setNotHours(0);
+    setHotHours(0);
+    setAdjustmentHours(0);
+    setSelectedSite('');
+    setIsHoliday(false);
+    setIsFriday(false);
+    setCalculations(null);
+    setIsEditing(false);
+    setEditingLogId(null);
+    setSelectedEmployeeInfo(null);
+    
     setShowForm(true);
     // Smooth scroll to the form after it renders
     setTimeout(() => {
@@ -664,6 +680,17 @@ const DailyLogs = () => {
   };
 
   const openBulkEntry = () => {
+    // Reset bulk form to default values when opening
+    setSelectedEmployees([]);
+    setSelectedDate(new Date().toISOString().split('T')[0]);
+    setBulkNtHours(0);
+    setBulkNotHours(0);
+    setBulkHotHours(0);
+    setBulkAdjustmentHours(0);
+    setSelectedSite('');
+    setIsHoliday(false);
+    setIsFriday(false);
+    
     setShowBulkEntry(true);
     // Smooth scroll to the bulk entry form after it renders
     setTimeout(() => {
@@ -695,6 +722,7 @@ const DailyLogs = () => {
     console.log('Setting values:', { ntValue, notValue, hotValue });
     
     setNtHours(ntValue);
+    setNtHoursInput(String(ntValue));
     setNotHours(notValue);
     setHotHours(hotValue);
     setAdjustmentHours(0); // Reset adjustment hours
@@ -710,6 +738,7 @@ const DailyLogs = () => {
     setSelectedEmployee('');
     setSelectedDate(new Date().toISOString().split('T')[0]);
     setNtHours(0);
+    setNtHoursInput('');
     setNotHours(0);
     setHotHours(0);
     setAdjustmentHours(0);
@@ -1063,14 +1092,27 @@ const DailyLogs = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div className="form-group">
                   <label className="form-label">Normal Time (N.T) Hours</label>
-                  {console.log('Rendering form with ntHours:', ntHours, 'isEditing:', isEditing)}
                   <input
-                    type="number"
-                    step="0.001"
-                    min="0"
-                    max="24"
-                    value={ntHours}
-                    onChange={(e) => setNtHours(parseFloat(e.target.value) || 0)}
+                    type="text"
+                    inputMode="decimal"
+                    pattern="[0-9]*\\.?[0-9]*"
+                    value={ntHoursInput}
+                    onChange={(e) => {
+                      const inputValue = e.target.value;
+                      console.log('NT Hours input changed to:', inputValue);
+                      console.log('Current ntHoursInput before change:', ntHoursInput);
+                      console.log('Current ntHours before change:', ntHours);
+                      
+                      setNtHoursInput(inputValue);
+                      
+                      // Immediately sync to numeric for calculations
+                      const parsed = parseFloat(inputValue);
+                      const numericValue = isNaN(parsed) ? 0 : parsed;
+                      console.log('Setting ntHours to:', numericValue);
+                      setNtHours(numericValue);
+                      
+                      console.log('After setting - ntHoursInput should be:', inputValue, 'ntHours should be:', numericValue);
+                    }}
                     className="input"
                     placeholder="0"
                   />
