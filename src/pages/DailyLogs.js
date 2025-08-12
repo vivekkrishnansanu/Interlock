@@ -151,17 +151,15 @@ const DailyLogs = () => {
   //   console.log('ntHours state changed to:', ntHours);
   // }, [ntHours]);
 
-  // Calculate wages when hours change
-  // TEMPORARILY DISABLED: Testing if this is interfering with ntHours state
-  /*
+  // Calculate wages when hours change - RE-ENABLED
   useEffect(() => {
     if (selectedEmployeeInfo && (ntHours > 0 || notHours > 0 || hotHours > 0)) {
+      console.log('Calculating wages with:', { ntHours, notHours, hotHours, selectedEmployeeInfo });
       calculateWages();
     } else {
       setCalculations(null);
     }
   }, [ntHours, notHours, hotHours, selectedEmployeeInfo]);
-  */
   // useEffect(() => {
   //   // ALL AUTOMATIC CALCULATIONS DISABLED
   //   // User must manually trigger calculations if needed
