@@ -1093,7 +1093,6 @@ const DailyLogs = () => {
                   <input
                     type="text"
                     inputMode="decimal"
-                    pattern="[0-9]*\\.?[0-9]*"
                     value={ntHoursInput}
                     onChange={(e) => {
                       const inputValue = e.target.value;
