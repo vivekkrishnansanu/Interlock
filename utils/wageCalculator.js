@@ -2,10 +2,18 @@
  * Wage calculation utilities with updated calculation logic
  * 
  * CALCULATION FORMULAS:
+ * 
+ * MONTHLY SALARY EMPLOYEES:
  * - NT Rate = (Basic Salary / No. of days in month) / 8
  * - ROT Rate = Basic Salary × 12 / 365 / 8 × 1.25
  * - HOT Rate = Basic Salary × 12 / 365 / 8 × 1.5
  * 
+ * HOURLY EMPLOYEES:
+ * - NT Pay = Hourly Wage × Total NT Hours
+ * - ROT Pay = Hourly Wage × Total ROT Hours
+ * - HOT Pay = Hourly Wage × Total HOT Hours
+ * 
+ * PRECISION: All monetary values are rounded to 3 decimal places
  * This ensures consistency with Excel calculations and company payroll standards.
  */
 
@@ -43,21 +51,29 @@ const calculateDailyWage = (dailyLog, employee) => {
     const dynamicRates = calculateMonthlyRates(basicPay, logDate.getMonth(), logDate.getFullYear());
     rates = dynamicRates;
   } else if (salaryType === 'hourly' && hourlyWage > 0) {
-    // For employees with hourly pay, use the same calculation logic for consistency
-    // NT Rate: hourly wage (direct)
-    // ROT Rate: hourly wage × 1.25
-    // HOT Rate: hourly wage × 1.5
+    // For hourly employees: calculate total pay by multiplying hourly wage with hours
+    // NT, ROT, HOT all use the same hourly wage rate
     rates = {
       ntRate: hourlyWage,
-      rotRate: hourlyWage * 1.25,
-      hotRate: hourlyWage * 1.5
+      rotRate: hourlyWage,  // Same rate for overtime
+      hotRate: hourlyWage   // Same rate for holiday overtime
     };
   }
 
   // Calculate pay for each type with validation
-  const normalPay = (ntHours || 0) * (rates.ntRate || 0);
-  const regularOTPay = (rotHours || 0) * (rates.rotRate || 0);
-  const holidayOTPay = (hotHours || 0) * (rates.hotRate || 0);
+  let normalPay, regularOTPay, holidayPay;
+  
+  if (salaryType === 'hourly' && hourlyWage > 0) {
+    // For hourly employees: multiply hourly wage by hours for each type
+    normalPay = (ntHours || 0) * hourlyWage;
+    regularOTPay = (rotHours || 0) * hourlyWage;
+    holidayPay = (hotHours || 0) * hourlyWage;
+  } else {
+    // For monthly employees: use calculated rates
+    normalPay = (ntHours || 0) * (rates.ntRate || 0);
+    regularOTPay = (rotHours || 0) * (rates.rotRate || 0);
+    holidayPay = (hotHours || 0) * (rates.hotRate || 0);
+  }
 
   // Total daily pay
   const totalPay = normalPay + regularOTPay + holidayOTPay;
@@ -65,7 +81,7 @@ const calculateDailyWage = (dailyLog, employee) => {
   return {
     normalPay: normalPay || 0,
     regularOTPay: regularOTPay || 0,
-    holidayOTPay: holidayOTPay || 0,
+    holidayOTPay: holidayPay || 0,
     totalPay: totalPay || 0,
     rates: rates, // Include rates for transparency
     employmentType: employmentType,
@@ -101,21 +117,29 @@ const calculateMonthlySummary = (dailyLogs, employee, month, year) => {
     const dynamicRates = calculateMonthlyRates(employee.basicPay, month, year);
     rates = dynamicRates;
   } else if (employee.salaryType === 'hourly' && employee.hourlyWage > 0) {
-    // For employees with hourly pay, use the same calculation logic for consistency
-    // NT Rate: hourly wage (direct)
-    // ROT Rate: hourly wage × 1.25
-    // HOT Rate: hourly wage × 1.5
+    // For hourly employees: calculate total pay by multiplying hourly wage with total hours
+    // NT, ROT, HOT all use the same hourly wage rate
     rates = {
       ntRate: employee.hourlyWage,
-      rotRate: employee.hourlyWage * 1.25,
-      hotRate: employee.hourlyWage * 1.5
+      rotRate: employee.hourlyWage,  // Same rate for overtime
+      hotRate: employee.hourlyWage   // Same rate for holiday overtime
     };
   }
 
   // Calculate pay amounts using dynamic rates
-  const totalNormalTimePay = totalNt * (rates.ntRate || 0);
-  const totalRegularOTPay = totalRot * (rates.rotRate || 0);
-  const totalHolidayOTPay = totalHot * (rates.hotRate || 0);
+  let totalNormalTimePay, totalRegularOTPay, totalHolidayOTPay;
+  
+  if (employee.salaryType === 'hourly' && employee.hourlyWage > 0) {
+    // For hourly employees: multiply hourly wage by total hours for each type
+    totalNormalTimePay = totalNt * employee.hourlyWage;
+    totalRegularOTPay = totalRot * employee.hourlyWage;
+    totalHolidayOTPay = totalHot * employee.hourlyWage;
+  } else {
+    // For monthly employees: use calculated rates
+    totalNormalTimePay = totalNt * (rates.ntRate || 0);
+    totalRegularOTPay = totalRot * (rates.rotRate || 0);
+    totalHolidayOTPay = totalHot * (rates.hotRate || 0);
+  }
 
   // Calculate total pay
   const totalPay = totalNormalTimePay + totalRegularOTPay + totalHolidayOTPay;
@@ -125,8 +149,8 @@ const calculateMonthlySummary = (dailyLogs, employee, month, year) => {
   const deductions = employee.deductions || 0;
   const netPay = finalPay - deductions;
   
-  // Round off Net Pay to nearest 1 decimal
-  const roundedNetPay = Math.round((netPay || 0) * 10) / 10;
+  // Round off Net Pay to nearest 3 decimal places
+  const roundedNetPay = Math.round((netPay || 0) * 1000) / 1000;
 
   // Get days in month for transparency
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -184,8 +208,8 @@ const calculateDailyWageWithDeductions = (dailyLog, employee) => {
   const finalPay = totalPay + (allowance || 0);
   const netPay = finalPay - (deductions || 0);
   
-  // Round off Net Pay to nearest 1 decimal
-  const roundedNetPay = Math.round((netPay || 0) * 10) / 10;
+  // Round off Net Pay to nearest 3 decimal places
+  const roundedNetPay = Math.round((netPay || 0) * 1000) / 1000;
 
   return {
     normalPay: normalPay || 0,
@@ -328,7 +352,7 @@ const calculateDailyWageWithAdvances = (dailyLog, employee, selectedMonth, advan
     ...baseCalculation,
     advanceDeductions,
     netPay: baseCalculation.netPay - advanceDeductions,
-    roundedNetPay: Math.round((baseCalculation.netPay - advanceDeductions) * 10) / 10
+    roundedNetPay: Math.round((baseCalculation.netPay - advanceDeductions) * 1000) / 1000
   };
 };
 
@@ -353,7 +377,7 @@ const calculateMonthlySummaryWithAdvances = (dailyLogs, employees, selectedMonth
     ...baseSummary,
     totalAdvanceDeductions,
     totalNetPay: baseSummary.totalNetPay - totalAdvanceDeductions,
-    totalRoundedNetPay: Math.round((baseSummary.totalNetPay - totalAdvanceDeductions) * 10) / 10
+    totalRoundedNetPay: Math.round((baseSummary.totalNetPay - totalAdvanceDeductions) * 1000) / 1000
   };
 };
 
