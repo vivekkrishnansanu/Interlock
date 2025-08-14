@@ -1,17 +1,31 @@
 /**
- * Wage calculation utilities with monthly rate adjustment
+ * Wage calculation utilities with updated calculation logic
+ * 
+ * CALCULATION FORMULAS:
+ * - NT Rate = (Basic Salary / No. of days in month) / 8
+ * - ROT Rate = Basic Salary × 12 / 365 / 8 × 1.25
+ * - HOT Rate = Basic Salary × 12 / 365 / 8 × 1.5
+ * 
+ * This ensures consistency with Excel calculations and company payroll standards.
  */
 
 // Calculate dynamic rates based on basic pay and month
 const calculateMonthlyRates = (basicPay, month, year) => {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const dailyRate = basicPay / daysInMonth;
-  const hourlyRate = dailyRate / 8;
+  
+  // NT Rate: (Basic Salary / No. of days in month) / 8
+  const ntRate = (basicPay / daysInMonth) / 8;
+  
+  // ROT Rate: Basic Salary × 12 / 365 / 8 × 1.25
+  const rotRate = (basicPay * 12) / 365 / 8 * 1.25;
+  
+  // HOT Rate: Basic Salary × 12 / 365 / 8 × 1.5
+  const hotRate = (basicPay * 12) / 365 / 8 * 1.5;
   
   return {
-    ntRate: hourlyRate,
-    rotRate: hourlyRate * 1.25,
-    hotRate: hourlyRate * 1.5
+    ntRate,
+    rotRate,
+    hotRate
   };
 };
 
@@ -29,7 +43,10 @@ const calculateDailyWage = (dailyLog, employee) => {
     const dynamicRates = calculateMonthlyRates(basicPay, logDate.getMonth(), logDate.getFullYear());
     rates = dynamicRates;
   } else if (salaryType === 'hourly' && hourlyWage > 0) {
-    // For employees with hourly pay (permanent, flexi visa, or manpower supply), use hourly wage with multipliers
+    // For employees with hourly pay, use the same calculation logic for consistency
+    // NT Rate: hourly wage (direct)
+    // ROT Rate: hourly wage × 1.25
+    // HOT Rate: hourly wage × 1.5
     rates = {
       ntRate: hourlyWage,
       rotRate: hourlyWage * 1.25,
@@ -84,7 +101,10 @@ const calculateMonthlySummary = (dailyLogs, employee, month, year) => {
     const dynamicRates = calculateMonthlyRates(employee.basicPay, month, year);
     rates = dynamicRates;
   } else if (employee.salaryType === 'hourly' && employee.hourlyWage > 0) {
-    // For employees with hourly pay (permanent, flexi visa, or manpower supply), use hourly wage with multipliers
+    // For employees with hourly pay, use the same calculation logic for consistency
+    // NT Rate: hourly wage (direct)
+    // ROT Rate: hourly wage × 1.25
+    // HOT Rate: hourly wage × 1.5
     rates = {
       ntRate: employee.hourlyWage,
       rotRate: employee.hourlyWage * 1.25,
